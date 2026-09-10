@@ -1,0 +1,88 @@
+// E-commerce — customers, catalog, orders, payments
+Table customers {
+  id int [pk, increment]
+  email varchar(254) [not null, unique]
+  full_name varchar(200) [not null]
+  phone varchar(32)
+  created_at timestamp [not null, default: `now()`]
+  Note: 'Shoppers with an account'
+}
+
+Table addresses {
+  id int [pk, increment]
+  customer_id int [not null, ref: > customers.id]
+  line1 varchar(200) [not null]
+  line2 varchar(200)
+  city varchar(100) [not null]
+  postal_code varchar(20) [not null]
+  country varchar(2) [not null, default: 'US']
+  is_default boolean [not null, default: false]
+}
+
+Table categories {
+  id int [pk, increment]
+  parent_id int [ref: > categories.id]
+  name varchar(100) [not null]
+  slug varchar(120) [not null, unique]
+}
+
+Table products {
+  id int [pk, increment]
+  category_id int [not null, ref: > categories.id]
+  sku varchar(64) [not null, unique]
+  name varchar(200) [not null]
+  description text
+  price decimal(10,2) [not null]
+  stock int [not null, default: 0]
+  is_active boolean [not null, default: true]
+  indexes {
+    (category_id, is_active)
+  }
+}
+
+Table orders {
+  id int [pk, increment]
+  customer_id int [not null, ref: > customers.id]
+  shipping_address_id int [not null, ref: > addresses.id]
+  status order_status [not null, default: 'pending']
+  total decimal(12,2) [not null, default: 0]
+  placed_at timestamp [not null, default: `now()`]
+  indexes {
+    (customer_id, placed_at)
+  }
+}
+
+Table order_items {
+  id int [pk, increment]
+  order_id int [not null, ref: > orders.id]
+  product_id int [not null, ref: > products.id]
+  quantity int [not null, default: 1]
+  unit_price decimal(10,2) [not null]
+  indexes {
+    (order_id, product_id) [unique]
+  }
+}
+
+Table payments {
+  id int [pk, increment]
+  order_id int [not null, unique, ref: - orders.id]
+  provider varchar(50) [not null]
+  amount decimal(12,2) [not null]
+  status payment_status [not null, default: 'authorized']
+  paid_at timestamp
+}
+
+Enum order_status {
+  pending
+  paid
+  shipped
+  delivered
+  cancelled
+}
+
+Enum payment_status {
+  authorized
+  captured
+  refunded
+  failed
+}

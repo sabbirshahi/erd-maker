@@ -1,6 +1,10 @@
 import type { Layout, Schema } from '@/core/schema'
 import { parseDbml } from '@/core/dbml'
 import blog from './blog.dbml?raw'
+import ecommerce from './ecommerce.dbml?raw'
+import school from './school.dbml?raw'
+import saas from './saas_multitenant.dbml?raw'
+import djangoAuth from './django_auth.dbml?raw'
 
 export interface Example {
   id: string
@@ -20,6 +24,31 @@ export const examples: Example[] = [
     description: 'Users, posts, tags, comments with an enum and a many-to-many.',
     dbml: blog,
     tags: ['starter'],
+  },
+  {
+    id: 'ecommerce',
+    title: 'E-commerce',
+    description: 'Customers, addresses, catalog, orders, order items and payments.',
+    dbml: ecommerce,
+  },
+  {
+    id: 'school',
+    title: 'School',
+    description: 'Students, teachers, courses, sections per term, enrollments and grades.',
+    dbml: school,
+  },
+  {
+    id: 'saas_multitenant',
+    title: 'SaaS multi-tenant',
+    description: 'Organizations, memberships with roles, projects, API keys, billing, audit log.',
+    dbml: saas,
+  },
+  {
+    id: 'django_auth',
+    title: 'Django auth',
+    description: "The tables Django's contrib.auth, contenttypes and sessions apps create.",
+    dbml: djangoAuth,
+    tags: ['django'],
   },
 ]
 
