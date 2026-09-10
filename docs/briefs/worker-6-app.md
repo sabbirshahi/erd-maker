@@ -1,0 +1,19 @@
+# worker-6 — app shell, persistence, examples, deploy (Phase 6 + M6 UI + M7 + M8 primitives + Phase 0 leftovers)
+
+Plan sections: §3 Phase 6, M6 Problems panel, M7 examples gallery/empty state, M8 copy primitives, §6 verification, CI.
+
+## Deliverables
+1. **Primitives first (others depend on them, land within 30 min):** `src/app/toast.tsx` (`toast(message)` + `<Toaster/>`), `src/app/CopyButton.tsx` (`<CopyButton text label />` → `navigator.clipboard.writeText` + toast "Copied {label}"), `src/app/ui.tsx` small building blocks (Button, IconButton, Tabs, Modal, Kbd) with Tailwind. Expose the store for tests: in `src/main.tsx` when `import.meta.env.DEV || import.meta.env.MODE === 'test' || location.search.includes('e2e')` set `window.__erd = { store: useSchemaStore }` (add the `Window` type in `src/app/global.d.ts`).
+2. `src/App.tsx` + `src/app/Shell.tsx`: top bar (logo "ERD Maker", Examples menu, Import, Export, Share, Undo/Redo, theme toggle, GitHub link); main split: `<Canvas/>` left (resizable), right pane tabs **DBML | Django | Demo** (`DbmlEditor`, `DjangoEditor` from `@/editors`, `DemoPanel` lazy from `@/demo`), bottom collapsible **Problems** panel (M6). Until siblings land, render placeholders — use `React.lazy` + `Suspense` + an `ErrorBoundary` per pane so a broken pane never kills the shell.
+3. **Problems panel (M6 UI):** lists `useAllDiagnostics()` grouped by severity with counts badge on the tab; each row: severity icon, source chip, message, location; click → `select({tableId, columnId})` + (if line) dispatch a custom event `erd:goto` `{ view, line }` that the editors listen to (document this in AGENTS.md; worker-3 implements the listener). Filter chips: errors / warnings / info; "lossy only" toggle.
+4. **Persistence:** `src/app/persistence.ts` — debounced (500 ms) autosave of `{ schema, layout, dbmlText }` to `localStorage['erd-maker:doc:v1']`; restore on boot; `load()` from store. Versioned key + migration stub.
+5. **Share link:** `src/app/share.ts` — `lz-string` `compressToEncodedURIComponent(JSON.stringify({schema, layout}))` in `location.hash` (`#d=…`); on boot, hash wins over localStorage; Share button copies the URL with toast; warn (toast) when > 30 KB. Also a QR code is out of scope.
+6. **Examples + empty state (M7):** `src/examples/*.dbml` — add `ecommerce`, `school`, `saas_multitenant`, `django_auth` (Django's auth tables); `src/examples/index.ts` registry with `layout?: Layout` optional. `EmptyState.tsx`: shown when `schema.tables.length === 0`: "Start from an example", "Paste DBML / SQL / models.py" (opens ImportDialog), "Start blank" + hint about dragging column handles. `ExamplesMenu.tsx` gallery with cards (thumbnail: render a tiny SVG of table boxes from the parsed schema — no build-time PNGs needed).
+7. Export PNG of the canvas via `html-to-image` (`toPng` on the React Flow viewport) — button in Export menu.
+8. Dark mode (class strategy: `document.documentElement.classList.toggle('dark')`, persisted) — Tailwind 4: add `@custom-variant dark (&:where(.dark, .dark *));` in `index.css`.
+9. `README.md` (what it is, dev commands, architecture pointer to the plan, deploy steps), `.github/workflows/ci.yml` (pnpm install, typecheck, lint, test, build; e2e job with `pnpm e2e:install`), `vercel.json` already exists — verify.
+10. Deploy readiness: `pnpm build` passes; `dist/` chunking as configured; document Vercel import steps (Hobby, framework Vite, `pnpm build`, `dist`). Actual deploy requires the user's Vercel login — prepare everything and note it.
+
+## Done when (Playwright `tests/e2e/app.spec.ts`)
+- Fresh profile → empty state visible; load the Blog example → tables render, zero error diagnostics; reload → autosaved schema returns; share link opened in a new context → same table names; Problems tab shows the count badge; Copy button writes clipboard; dark mode toggles and persists.
+- `pnpm typecheck && pnpm lint && pnpm test && pnpm build` green; CI workflow file valid.
