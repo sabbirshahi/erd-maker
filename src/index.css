@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+:root.dark {
+  color-scheme: dark;
 }
 
 html, body, #root {
@@ -12,4 +17,10 @@ html, body, #root {
 body {
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   @apply bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100;
+}
+
+/* Fill the pane React Flow lives in. */
+.react-flow {
+  height: 100%;
+  width: 100%;
 }
