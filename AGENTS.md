@@ -57,9 +57,15 @@ export { ImportDialog, ExportDialog } from '@/editors'   // props: { open: boole
 // worker-5
 export { DemoPanel } from '@/demo'                // <DemoPanel /> self-contained (boot button, tabs, results)
 // worker-6 provides
-export { toast } from '@/app/toast'               // toast(message: string)
-export { CopyButton } from '@/app/CopyButton'     // <CopyButton text={string} label="DBML" />
+export { toast } from '@/app/toast'               // toast(message: string, kind?: 'info' | 'error')
+export { CopyButton } from '@/app/CopyButton'     // <CopyButton text={string | () => string} label="DBML" />
 ```
+
+**`erd:goto` event (Problems panel → editors):** clicking a diagnostic row calls `select({tableId, columnId, refId})`
+and, when the diagnostic has a `line`, dispatches `window.dispatchEvent(new CustomEvent('erd:goto', { detail: { view, line, col } }))`
+with `view: 'dbml' | 'django'` (derived from `diagnostic.source`). The shell also switches the right pane to that tab.
+Editors (worker-3) listen on `window` and scroll/place the cursor at `line`/`col` (1-based). Types: `GotoEventDetail` in `src/app/ProblemsPanel.tsx`.
+Test hook: `window.__erd = { store: useSchemaStore }` is set in `main.tsx` in dev/test or when `location.search` includes `e2e`.
 
 Until a component exists, the shell renders a placeholder; use `import()` guards if needed, but prefer landing a minimal real component early.
 
