@@ -8,6 +8,7 @@
  *  4. Parsers commit only with zero error diagnostics; set diagnostics via `setDiagnostics`.
  */
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { temporal } from 'zundo'
 import { produce } from 'immer'
 import type { Diagnostic, DiagnosticSource, Layout, Schema } from '@/core/schema'
@@ -137,7 +138,7 @@ export const useSchemaStore = create<SchemaState>()(
 export const useSchema = () => useSchemaStore((s) => s.schema)
 export const useLayout = () => useSchemaStore((s) => s.layout)
 export const useAllDiagnostics = () =>
-  useSchemaStore((s) => Object.values(s.diagnostics).flat())
+  useSchemaStore(useShallow((s) => Object.values(s.diagnostics).flat()))
 
 /** Undo/redo handles (zundo temporal store). */
 export const undo = () => useSchemaStore.temporal.getState().undo()
