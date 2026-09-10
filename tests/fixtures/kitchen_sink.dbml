@@ -1,0 +1,102 @@
+// Kitchen sink: every DBML construct the IR must round-trip.
+Project kitchen_sink {
+  database_type: 'PostgreSQL'
+  Note: 'Exercises enums, composite keys, all ref kinds, schemas, defaults and notes'
+}
+
+Enum order_status {
+  pending [note: 'Awaiting payment']
+  paid
+  "on hold"
+  cancelled
+}
+
+Enum auth.role {
+  admin
+  member
+}
+
+Table public.users as U [headercolor: #3498db] {
+  id int [pk, increment]
+  email varchar(254) [not null, unique, note: 'Login identifier']
+  display_name varchar(100) [default: 'anonymous']
+  role auth.role [not null, default: 'member']
+  balance decimal(10,2) [not null, default: 0]
+  is_active boolean [not null, default: true]
+  bio text [note: 'Multi-line\nbio with \'quotes\' and a back\\slash']
+  created_at timestamp [not null, default: `now()`]
+  deleted_at timestamptz [default: null]
+
+  Note: 'People who can log in'
+}
+
+Table auth.sessions {
+  token uuid [pk]
+  user_id int [not null, ref: > U.id]
+  expires_at timestamp [not null]
+
+  indexes {
+    (user_id, expires_at) [name: 'sessions_user_expiry', type: btree]
+  }
+}
+
+Table profiles {
+  id int [pk, increment]
+  user_id int [not null, unique]
+  website varchar(2048)
+}
+
+Table orders {
+  id int [pk, increment]
+  user_id int [not null]
+  status order_status [not null, default: 'pending']
+  total decimal(12,2) [not null, default: 0.0]
+  placed_at timestamp [not null, default: `now()`]
+
+  indexes {
+    status
+    (user_id, placed_at) [unique, note: 'One order per instant per user']
+  }
+}
+
+Table order_lines {
+  order_id int [not null]
+  line_no int [not null]
+  sku varchar(64) [not null]
+  qty int [not null, default: 1]
+
+  indexes {
+    (order_id, line_no) [pk]
+    sku [name: 'order_lines_sku_idx']
+  }
+}
+
+Table tags {
+  id int [pk, increment]
+  label varchar(50) [not null, unique]
+}
+
+Table "order line notes" {
+  id int [pk, increment]
+  order_id int [not null]
+  line_no int [not null]
+  "note text" text [not null]
+}
+
+Ref: profiles.user_id - U.id [delete: cascade]
+Ref fk_orders_user: orders.user_id > users.id [delete: restrict, update: cascade]
+Ref: orders.id < order_lines.order_id [delete: cascade]
+Ref: orders.id <> tags.id
+Ref: "order line notes".(order_id, line_no) > order_lines.(order_id, line_no) [delete: cascade, update: no action]
+
+TableGroup commerce [color: #27ae60] {
+  orders
+  order_lines
+  tags
+
+  Note: 'Ordering domain'
+}
+
+Note release_notes {
+  'Sticky note kept verbatim by the generator'
+}
