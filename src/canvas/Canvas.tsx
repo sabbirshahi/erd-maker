@@ -79,6 +79,7 @@ function CanvasInner() {
   const anchor = useCanvasUi(selectAnchor)
   const setHover = useCanvasUi((s) => s.setHover)
   const setPinned = useCanvasUi((s) => s.setPinned)
+  const multiSelect = useCanvasUi((s) => s.multiSelect)
 
   const rf = useReactFlow<TableNodeType, RefEdgeType>()
   const colorMode = useColorMode()
@@ -117,11 +118,11 @@ function CanvasInner() {
         type: 'table',
         position: dragPos[t.id] ?? layout[t.id] ?? fallback[t.id] ?? { x: 0, y: 0 },
         data: { tableId: t.id },
-        selected: selection.tableId === t.id,
+        selected: multiSelect.includes(t.id) || selection.tableId === t.id,
         measured: measured[t.id],
         className: anchor ? (hl.tables.has(t.id) ? 'highlighted' : 'dimmed') : undefined,
       })),
-    [schema.tables, layout, fallback, dragPos, measured, selection.tableId, anchor, hl],
+    [schema.tables, layout, fallback, dragPos, measured, selection.tableId, multiSelect, anchor, hl],
   )
 
   const edgeColor = colorMode === 'dark' ? '#71717a' : '#a1a1aa'
@@ -217,7 +218,15 @@ function CanvasInner() {
           return next
         })
       }
-      if (sel.size) applySelection(sel, new Map())
+      if (sel.size) {
+        // Mirror React Flow's own selection (box-select, shift-click) into the canvas ui store,
+        // since `nodes` is derived and would otherwise drop it on the next render.
+        const ui = useCanvasUi.getState()
+        const next = new Set(ui.multiSelect)
+        for (const [id, on] of sel) if (on) next.add(id); else next.delete(id)
+        ui.setMultiSelect(next.size > 1 ? [...next] : [])
+        applySelection(sel, new Map())
+      }
     },
     [applySelection],
   )
@@ -253,9 +262,17 @@ function CanvasInner() {
   const onNodeMouseLeave = useCallback(() => setHover(null), [setHover])
   const onEdgeMouseEnter = useCallback<EdgeMouseHandler<RefEdgeType>>((_, e) => setHover({ kind: 'ref', id: e.id }), [setHover])
   const onEdgeMouseLeave = useCallback(() => setHover(null), [setHover])
-  const onNodeDoubleClick = useCallback<NodeMouseHandler<TableNodeType>>((_, n) => actions.focusTable(n.id), [actions])
+  // One click selects and highlights; the edit panel is opened deliberately with a double click.
+  const onNodeDoubleClick = useCallback<NodeMouseHandler<TableNodeType>>((_, n) => {
+    useSchemaStore.getState().select({ tableId: n.id })
+    useCanvasUi.getState().setMultiSelect([])
+    useCanvasUi.getState().setInspectorOpen(true)
+  }, [])
   const onPaneClick = useCallback(() => {
     if (useSchemaStore.getState().selection.tableId || useSchemaStore.getState().selection.refId) select({})
+    const ui = useCanvasUi.getState()
+    ui.setInspectorOpen(false)
+    ui.setMultiSelect([])
     setPinned(null)
   }, [select, setPinned])
 
@@ -292,6 +309,10 @@ function CanvasInner() {
         onEdgeMouseEnter={onEdgeMouseEnter}
         onEdgeMouseLeave={onEdgeMouseLeave}
         onNodeDoubleClick={onNodeDoubleClick}
+        onEdgeDoubleClick={(_, e) => {
+          useSchemaStore.getState().select({ refId: e.id })
+          useCanvasUi.getState().setInspectorOpen(true)
+        }}
         onPaneClick={onPaneClick}
         deleteKeyCode={null}
         selectionKeyCode={null}

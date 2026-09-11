@@ -9,6 +9,9 @@ import { EmptyState } from './EmptyState'
 import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng } from './exportPng'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
+import { ProjectMenu } from './ProjectMenu'
+import { ProjectLauncher } from './ProjectLauncher'
+import { getSession } from './session'
 import { ProblemsPanel, countBySeverity } from './ProblemsPanel'
 import { shareCurrent } from './share'
 import { useTheme } from './theme'
@@ -94,6 +97,9 @@ export function Shell() {
   const [gallery, setGallery] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const session = getSession()
+  const [activeId, setActiveId] = useState(session.activeId)
+  const [launcherOpen, setLauncherOpen] = useState(session.needsLauncher)
   const [theme, toggleTheme] = useTheme()
 
   const diagnostics = useAllDiagnostics()
@@ -102,9 +108,16 @@ export function Shell() {
   // Undo / redo shortcuts (canvas & editors handle their own when focused).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isEditableTarget(e.target)) return
       const mod = e.ctrlKey || e.metaKey
       if (!mod) return
+      // Ctrl+S saves from anywhere, including while typing in an editor.
+      if (e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        if (session.controller.save()) toast('Saved')
+        else toast('Could not save: browser storage is full or unavailable', 'error')
+        return
+      }
+      if (isEditableTarget(e.target)) return
       if (e.key.toLowerCase() === 'z') {
         e.preventDefault()
         if (e.shiftKey) redo()
@@ -116,7 +129,7 @@ export function Shell() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [session])
 
   // Resizable split
   const dragging = useRef(false)
@@ -163,9 +176,21 @@ export function Shell() {
 
   return (
     <div className="flex h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100" data-testid="shell">
+      {launcherOpen && (
+        <ProjectLauncher
+          controller={session.controller}
+          onOpen={(id) => {
+            setActiveId(id)
+            setLauncherOpen(false)
+          }}
+          onBrowseExamples={() => setGallery(true)}
+        />
+      )}
       {/* Top bar */}
       <header className="flex h-12 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900" data-testid="topbar">
         <Logo />
+        <ProjectMenu controller={session.controller} activeId={activeId} onActiveChange={setActiveId} />
+        <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
         <Button variant="ghost" size="sm" data-testid="btn-examples" onClick={() => setGallery(true)}>
           Examples
         </Button>

@@ -36,6 +36,21 @@ export function useShortcuts(actions: CanvasActions, root: React.RefObject<HTMLE
         return
       }
       if (!inCanvas) return
+
+      // Clipboard shortcuts. The browser's own copy/paste is only meaningful over selected text or
+      // an input, both excluded above, so taking these keys here does not fight the platform.
+      if (mod && !e.shiftKey && !e.altKey) {
+        const key = e.key.toLowerCase()
+        if (key === 'c' || key === 'x' || key === 'v' || key === 'd' || key === 'a') {
+          e.preventDefault()
+          if (key === 'c') actions.copySelected()
+          else if (key === 'x') actions.cutSelected()
+          else if (key === 'v') actions.paste()
+          else if (key === 'd') actions.duplicateSelected()
+          else actions.selectAll()
+          return
+        }
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && !inInspector) {
         e.preventDefault()
         actions.deleteSelected()

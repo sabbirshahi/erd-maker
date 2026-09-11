@@ -4,7 +4,7 @@ import './index.css'
 import App from './App'
 import { useSchemaStore } from '@/store'
 import { initTheme } from '@/app/theme'
-import { restoreDoc, startAutosave } from '@/app/persistence'
+import { bootSession } from '@/app/session'
 import { restoreFromHash } from '@/app/share'
 
 initTheme()
@@ -14,9 +14,9 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test' || location.search.in
   window.__erd = { store: useSchemaStore }
 }
 
-// Boot: share hash wins over autosave.
-if (!restoreFromHash(useSchemaStore)) restoreDoc(useSchemaStore)
-startAutosave(useSchemaStore)
+// Boot: a share hash wins over the stored project, and is then adopted into it.
+const fromHash = restoreFromHash(useSchemaStore)
+bootSession(fromHash)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
