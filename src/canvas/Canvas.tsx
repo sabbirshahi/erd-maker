@@ -254,6 +254,8 @@ function CanvasInner() {
       d.refs.push(ref)
     })
     useSchemaStore.getState().select({ refId: ref.id })
+    // Drawing a relation is a deliberate creation, like adding a table, so its panel opens.
+    useCanvasUi.getState().setInspectorOpen(true)
     useCanvasUi.getState().setPinned({ kind: 'ref', id: ref.id })
   }, [])
 

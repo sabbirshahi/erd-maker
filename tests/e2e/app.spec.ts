@@ -39,8 +39,10 @@ test.describe('app shell', () => {
     )
     expect(errors).toBe(0)
 
-    // Autosave (debounced 500 ms) → reload restores.
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('erd-maker:doc:v1') !== null)).toBe(true)
+    // Autosave writes into the tab's active project → reload restores it.
+    await expect
+      .poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('erd-maker:project:'))))
+      .toBe(true)
     await page.reload()
     await expect.poll(() => tableNames(page)).toEqual(['users', 'posts', 'tags', 'comments'])
     await expect(page.getByTestId('empty-state')).toBeHidden()

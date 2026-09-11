@@ -119,7 +119,7 @@ const baseTheme = EditorView.theme({
   // ---- lint tooltip ----
   // CodeMirror's default puts the message and every action on one line as heavy grey blocks.
   // This lays it out as a small card: message first, quiet chips underneath.
-  '.cm-tooltip.cm-tooltip-lint': {
+  '.cm-tooltip:has(.cm-diagnostic), .cm-tooltip.cm-tooltip-lint': {
     border: 'none',
     borderRadius: '8px',
     background: 'transparent',
@@ -127,7 +127,7 @@ const baseTheme = EditorView.theme({
     overflow: 'hidden',
     maxWidth: '380px',
   },
-  '.cm-tooltip-lint .cm-diagnostic': {
+  '.cm-diagnostic': {
     padding: '10px 12px',
     margin: '0',
     borderLeft: '3px solid transparent',
@@ -137,13 +137,16 @@ const baseTheme = EditorView.theme({
     fontSize: '12.5px',
     lineHeight: '1.45',
   },
-  '.cm-tooltip-lint .cm-diagnostic + .cm-diagnostic': { borderTop: '1px solid var(--erd-hairline, #e4e4e7)' },
-  '.cm-tooltip-lint .cm-diagnostic-error': { borderLeftColor: '#ef4444' },
-  '.cm-tooltip-lint .cm-diagnostic-warning': { borderLeftColor: '#f59e0b' },
-  '.cm-tooltip-lint .cm-diagnostic-info': { borderLeftColor: '#3b82f6' },
+  '.cm-diagnostic + .cm-diagnostic': { borderTop: '1px solid var(--erd-hairline, #e4e4e7)' },
+  // The hover variant wraps diagnostics in a <ul> that brings its own list styling.
+  'ul.cm-tooltip-lint': { margin: '0', padding: '0', listStyle: 'none', maxWidth: '380px' },
+  '.cm-tooltip-hover, .cm-tooltip-section': { border: 'none', background: 'transparent' },
+  '.cm-diagnostic-error': { borderLeftColor: '#ef4444' },
+  '.cm-diagnostic-warning': { borderLeftColor: '#f59e0b' },
+  '.cm-diagnostic-info': { borderLeftColor: '#3b82f6' },
 
   // Actions sit on their own row, as small quiet chips.
-  '.cm-tooltip-lint .cm-diagnosticAction': {
+  '.cm-diagnosticAction': {
     display: 'inline-block',
     margin: '8px 6px 0 0',
     padding: '3px 9px',
@@ -156,13 +159,13 @@ const baseTheme = EditorView.theme({
     cursor: 'pointer',
     transition: 'background 120ms, border-color 120ms',
   },
-  '.cm-tooltip-lint .cm-diagnosticAction:hover': {
+  '.cm-diagnosticAction:hover': {
     background: 'var(--erd-chip-hover, #e4e4e7)',
     borderColor: 'var(--erd-hairline-strong, #d4d4d8)',
   },
   // The first action is the recommended one. `display: block` also breaks it onto its own row, so
   // it never sits glued to the end of the message text.
-  '.cm-tooltip-lint .cm-diagnosticAction:first-of-type': {
+  '.cm-diagnosticAction:first-of-type': {
     display: 'block',
     width: 'fit-content',
     marginTop: '10px',
@@ -170,9 +173,9 @@ const baseTheme = EditorView.theme({
     borderColor: '#4f46e5',
     color: '#fff',
   },
-  '.cm-tooltip-lint .cm-diagnosticAction:first-of-type:hover': { background: '#4338ca', borderColor: '#4338ca' },
+  '.cm-diagnosticAction:first-of-type:hover': { background: '#4338ca', borderColor: '#4338ca' },
   // The source tag ("dbml") adds noise next to a message that already says what is wrong.
-  '.cm-tooltip-lint .cm-diagnosticSource': { display: 'none' },
+  '.cm-diagnosticSource': { display: 'none' },
 })
 
 export function CodeMirrorEditor({

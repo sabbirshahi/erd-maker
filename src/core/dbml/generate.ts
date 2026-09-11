@@ -7,7 +7,7 @@
  * (inline `[ref: ...]` settings are never produced).
  */
 import type { Column, Enum, Index, Ref, RefEndpoint, Schema, Table } from '../schema'
-import { quoteDbmlString } from './strings'
+import { formatDbmlDefault, quoteDbmlString } from './strings'
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
 /** Type base names may carry a schema qualifier or array suffix, e.g. `auth.role`, `int[]`. */
@@ -36,7 +36,7 @@ function columnSettings(c: Column): string[] {
   if (c.increment) s.push('increment')
   if (c.notNull) s.push('not null')
   if (c.unique) s.push('unique')
-  if (c.default !== undefined && c.default !== '') s.push(`default: ${c.default}`)
+  if (c.default !== undefined && c.default.trim() !== '') s.push(`default: ${formatDbmlDefault(c.default)}`)
   if (c.note) s.push(`note: ${quoteDbmlString(c.note)}`)
   return s
 }

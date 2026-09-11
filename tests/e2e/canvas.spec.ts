@@ -180,7 +180,10 @@ test.describe('canvas', () => {
   test('changing a type in the inspector updates the node row; positions persist in the store and across reload', async ({ page }) => {
     await boot(page)
     await seedBlogLike(page)
+    // One click only selects; the edit panel opens on double click.
     await node(page, 'users').getByTestId('table-header').click()
+    await expect(page.getByTestId('inspector-table')).toBeHidden()
+    await node(page, 'users').getByTestId('table-header').dblclick()
     await expect(page.getByTestId('inspector-table')).toBeVisible()
     await expect(page.getByTestId('inspector-table-name')).toHaveValue('users')
 
@@ -209,8 +212,10 @@ test.describe('canvas', () => {
     expect(after.x).toBeGreaterThan(before.x)
     expect(after.y).toBeGreaterThan(before.y)
 
-    // Autosave (worker-6) → reload keeps positions.
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('erd-maker:doc:v1') !== null)).toBe(true)
+    // Autosave writes the tab's active project → reload keeps positions.
+    await expect
+      .poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('erd-maker:project:'))))
+      .toBe(true)
     await page.waitForTimeout(700)
     await page.reload()
     await expect(page.locator('.react-flow__node')).toHaveCount(3)
