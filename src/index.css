@@ -24,3 +24,22 @@ body {
   height: 100%;
   width: 100%;
 }
+
+/* Lint tooltip palette. The tooltip is portalled to <body>, outside .erd-canvas, so these live
+   at the root rather than with the canvas tokens. */
+:root {
+  --erd-surface: #ffffff;
+  --erd-text: #18181b;
+  --erd-hairline: #e4e4e7;
+  --erd-hairline-strong: #d4d4d8;
+  --erd-chip: #f4f4f5;
+  --erd-chip-hover: #e4e4e7;
+}
+:root.dark {
+  --erd-surface: #18181b;
+  --erd-text: #fafafa;
+  --erd-hairline: #3f3f46;
+  --erd-hairline-strong: #52525b;
+  --erd-chip: #27272a;
+  --erd-chip-hover: #3f3f46;
+}

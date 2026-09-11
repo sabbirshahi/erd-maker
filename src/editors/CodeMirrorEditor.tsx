@@ -115,6 +115,64 @@ const baseTheme = EditorView.theme({
   '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', overflow: 'auto' },
   '.cm-content': { minHeight: '100%' },
   '&.cm-focused': { outline: 'none' },
+
+  // ---- lint tooltip ----
+  // CodeMirror's default puts the message and every action on one line as heavy grey blocks.
+  // This lays it out as a small card: message first, quiet chips underneath.
+  '.cm-tooltip.cm-tooltip-lint': {
+    border: 'none',
+    borderRadius: '8px',
+    background: 'transparent',
+    boxShadow: '0 8px 24px -6px rgb(0 0 0 / 0.25), 0 0 0 1px rgb(0 0 0 / 0.06)',
+    overflow: 'hidden',
+    maxWidth: '380px',
+  },
+  '.cm-tooltip-lint .cm-diagnostic': {
+    padding: '10px 12px',
+    margin: '0',
+    borderLeft: '3px solid transparent',
+    background: 'var(--erd-surface, #fff)',
+    color: 'var(--erd-text, #18181b)',
+    fontFamily: 'inherit',
+    fontSize: '12.5px',
+    lineHeight: '1.45',
+  },
+  '.cm-tooltip-lint .cm-diagnostic + .cm-diagnostic': { borderTop: '1px solid var(--erd-hairline, #e4e4e7)' },
+  '.cm-tooltip-lint .cm-diagnostic-error': { borderLeftColor: '#ef4444' },
+  '.cm-tooltip-lint .cm-diagnostic-warning': { borderLeftColor: '#f59e0b' },
+  '.cm-tooltip-lint .cm-diagnostic-info': { borderLeftColor: '#3b82f6' },
+
+  // Actions sit on their own row, as small quiet chips.
+  '.cm-tooltip-lint .cm-diagnosticAction': {
+    display: 'inline-block',
+    margin: '8px 6px 0 0',
+    padding: '3px 9px',
+    borderRadius: '999px',
+    border: '1px solid var(--erd-hairline, #e4e4e7)',
+    background: 'var(--erd-chip, #f4f4f5)',
+    color: 'var(--erd-text, #18181b)',
+    fontSize: '11.5px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'background 120ms, border-color 120ms',
+  },
+  '.cm-tooltip-lint .cm-diagnosticAction:hover': {
+    background: 'var(--erd-chip-hover, #e4e4e7)',
+    borderColor: 'var(--erd-hairline-strong, #d4d4d8)',
+  },
+  // The first action is the recommended one. `display: block` also breaks it onto its own row, so
+  // it never sits glued to the end of the message text.
+  '.cm-tooltip-lint .cm-diagnosticAction:first-of-type': {
+    display: 'block',
+    width: 'fit-content',
+    marginTop: '10px',
+    background: '#4f46e5',
+    borderColor: '#4f46e5',
+    color: '#fff',
+  },
+  '.cm-tooltip-lint .cm-diagnosticAction:first-of-type:hover': { background: '#4338ca', borderColor: '#4338ca' },
+  // The source tag ("dbml") adds noise next to a message that already says what is wrong.
+  '.cm-tooltip-lint .cm-diagnosticSource': { display: 'none' },
 })
 
 export function CodeMirrorEditor({
