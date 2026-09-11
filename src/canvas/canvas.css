@@ -1,0 +1,360 @@
+/* Canvas-specific styles layered on top of React Flow's base styles and Tailwind. */
+
+.erd-canvas {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  --erd-node-bg: #ffffff;
+  --erd-node-border: #d4d4d8;
+  --erd-node-header: #f4f4f5;
+  --erd-node-text: #18181b;
+  --erd-node-muted: #71717a;
+  --erd-row-hover: #f4f4f5;
+  --erd-row-selected: #eef2ff;
+  --erd-accent: #4f46e5;
+  --erd-edge: #a1a1aa;
+  --erd-edge-selected: #4f46e5;
+  --erd-panel-bg: rgba(255, 255, 255, 0.92);
+  --erd-panel-border: #e4e4e7;
+}
+.dark .erd-canvas {
+  --erd-node-bg: #18181b;
+  --erd-node-border: #3f3f46;
+  --erd-node-header: #27272a;
+  --erd-node-text: #fafafa;
+  --erd-node-muted: #a1a1aa;
+  --erd-row-hover: #27272a;
+  --erd-row-selected: #312e81;
+  --erd-accent: #818cf8;
+  --erd-edge: #71717a;
+  --erd-edge-selected: #a5b4fc;
+  --erd-panel-bg: rgba(24, 24, 27, 0.92);
+  --erd-panel-border: #3f3f46;
+}
+
+/* ---- nodes ---- */
+.react-flow__node-table {
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--erd-node-text);
+  transition: opacity 0.15s ease;
+}
+.erd-table {
+  min-width: 200px;
+  max-width: 420px;
+  border: 1px solid var(--erd-node-border);
+  border-radius: 8px;
+  background: var(--erd-node-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.06);
+  overflow: visible;
+}
+.erd-table--selected {
+  box-shadow: 0 0 0 2px var(--erd-accent), 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.erd-table__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--erd-node-border);
+  border-radius: 8px 8px 0 0;
+  background: var(--erd-node-header);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: grab;
+}
+.erd-table__rows {
+  list-style: none;
+  margin: 0;
+  padding: 3px 0;
+}
+.erd-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 10px;
+  cursor: default;
+}
+.erd-row:hover {
+  background: var(--erd-row-hover);
+}
+.erd-row--selected {
+  background: var(--erd-row-selected);
+}
+.erd-row__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.erd-row__type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 11rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--erd-node-muted);
+}
+.erd-row__badges {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* ---- handles ---- */
+.react-flow__handle.erd-handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--erd-node-bg);
+  background: var(--erd-node-muted);
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.erd-row:hover .erd-handle,
+.react-flow__node.selected .erd-handle,
+.react-flow__handle.erd-handle.connectingfrom,
+.react-flow__handle.erd-handle.connectingto,
+.react-flow.connecting .erd-handle {
+  opacity: 1;
+}
+.react-flow__handle.erd-handle:hover,
+.react-flow__handle.erd-handle.connectingto {
+  background: var(--erd-accent);
+  transform: translate(-50%, -50%) scale(1.3);
+}
+.react-flow__handle-right.erd-handle:hover,
+.react-flow__handle-right.erd-handle.connectingto {
+  transform: translate(50%, -50%) scale(1.3);
+}
+.react-flow__handle.erd-handle.valid {
+  background: #16a34a;
+}
+
+/* ---- edges ---- */
+.react-flow__edge.erd-edge {
+  transition: opacity 0.15s ease;
+}
+.react-flow__edge.erd-edge .react-flow__edge-path {
+  stroke: var(--erd-edge);
+  stroke-width: 1.5;
+}
+.react-flow__edge.erd-edge:hover .react-flow__edge-path,
+.react-flow__edge.erd-edge.selected .react-flow__edge-path,
+.react-flow__edge.erd-edge.highlighted .react-flow__edge-path {
+  stroke: var(--erd-edge-selected);
+  stroke-width: 2.25;
+}
+.erd-edge__label {
+  position: absolute;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--erd-node-bg);
+  border: 1px solid var(--erd-node-border);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: var(--erd-node-muted);
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.react-flow__edge.dimmed .erd-edge__label {
+  opacity: 0.3;
+}
+.erd-edge__toolbar {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--erd-panel-bg);
+  border: 1px solid var(--erd-panel-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  pointer-events: all;
+  z-index: 10;
+}
+
+/* ---- M5 highlight / dim ---- */
+.react-flow__node.dimmed,
+.react-flow__edge.dimmed {
+  opacity: 0.3;
+}
+.react-flow__node.highlighted .erd-table {
+  border-color: var(--erd-accent);
+}
+
+/* ---- toolbar ---- */
+.erd-toolbar.react-flow__panel {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 10px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--erd-panel-bg);
+  border: 1px solid var(--erd-panel-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+}
+.erd-toolbar__sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--erd-panel-border);
+}
+.erd-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--erd-node-text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.erd-tool:hover:not(:disabled) {
+  background: var(--erd-row-hover);
+}
+.erd-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.erd-tool--danger:hover:not(:disabled) {
+  color: #dc2626;
+}
+
+/* ---- inspector ---- */
+.erd-inspector {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 6;
+  width: 22rem;
+  max-width: calc(100% - 20px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--erd-panel-bg);
+  border: 1px solid var(--erd-panel-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  color: var(--erd-node-text);
+  font-size: 12px;
+}
+.erd-inspector--collapsed {
+  bottom: auto;
+  width: 12rem;
+}
+.erd-input,
+.erd-select {
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid var(--erd-node-border);
+  background: var(--erd-node-bg);
+  color: var(--erd-node-text);
+  font-size: 12px;
+  outline: none;
+}
+textarea.erd-input {
+  height: auto;
+  padding: 4px 6px;
+}
+.erd-input:focus,
+.erd-select:focus {
+  border-color: var(--erd-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--erd-accent) 30%, transparent);
+}
+.erd-col {
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+.erd-col--selected {
+  border-color: var(--erd-node-border);
+  background: var(--erd-row-hover);
+}
+.erd-grip {
+  cursor: grab;
+  user-select: none;
+  color: var(--erd-node-muted);
+  font-size: 10px;
+  letter-spacing: -2px;
+  padding: 0 1px;
+}
+.erd-flag {
+  height: 22px;
+  min-width: 26px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--erd-node-border);
+  background: var(--erd-node-bg);
+  color: var(--erd-node-muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.erd-flag--on {
+  background: var(--erd-accent);
+  border-color: var(--erd-accent);
+  color: #fff;
+}
+.erd-flag:focus-visible,
+.erd-icon-btn:focus-visible,
+.erd-btn:focus-visible,
+.erd-tool:focus-visible {
+  outline: 2px solid var(--erd-accent);
+  outline-offset: 1px;
+}
+.erd-btn {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: 1px solid var(--erd-node-border);
+  background: var(--erd-node-bg);
+  color: var(--erd-node-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.erd-btn:hover {
+  background: var(--erd-row-hover);
+}
+.erd-btn--danger {
+  color: #dc2626;
+}
+.erd-btn--danger:hover {
+  background: #fef2f2;
+}
+.dark .erd-btn--danger:hover {
+  background: #450a0a;
+}
+.erd-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--erd-node-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.erd-icon-btn:hover {
+  background: var(--erd-row-hover);
+  color: var(--erd-node-text);
+}
+
+/* React Flow chrome in dark mode follows its own colorMode; keep the minimap subtle */
+.react-flow__minimap {
+  border-radius: 8px;
+  overflow: hidden;
+}
