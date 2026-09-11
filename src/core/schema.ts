@@ -38,6 +38,12 @@ export interface Column {
     extraKwargs?: Record<string, string>
     /** Explicit Django field type override (e.g. "EmailField"). */
     fieldType?: string
+    /**
+     * Django attribute name when it differs from the one the generator derives from `name`
+     * (e.g. `editor = ForeignKey(db_column='editor_ref')`). Keeps passthrough code that references
+     * `self.editor` valid across a round trip.
+     */
+    fieldName?: string
   }
 }
 
