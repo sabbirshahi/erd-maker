@@ -87,6 +87,24 @@ export function pasteInto(draft: Schema, payload: ClipboardPayload, offset = { x
   return { tableIds, layout }
 }
 
+/**
+ * The selected tables as a standalone schema: enums and project settings are carried over, and a
+ * relation is kept only when both of its endpoints are in the selection.
+ */
+export function schemaSubset(schema: Schema, tableIds: readonly string[]): Schema {
+  const ids = new Set(tableIds)
+  const tables = schema.tables.filter((t) => ids.has(t.id))
+  const refs = schema.refs.filter((r) => ids.has(r.from.tableId) && ids.has(r.to.tableId))
+  // Keep only the enums the surviving columns actually use, so the export has no dangling types.
+  const used = new Set(tables.flatMap((t) => t.columns.map((c) => c.type.replace(/^.*\./, ''))))
+  return {
+    project: schema.project,
+    tables: structuredClone(tables),
+    refs: structuredClone(refs),
+    enums: structuredClone(schema.enums.filter((e) => used.has(e.name))),
+  }
+}
+
 /** Human-readable summary for the toast after a clipboard action. */
 export function describePayload(payload: ClipboardPayload): string {
   const t = payload.tables.length

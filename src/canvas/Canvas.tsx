@@ -29,6 +29,7 @@ import { canvasDiagnostics } from './diagnostics'
 import { handleId } from './handles'
 import { computeHighlight } from './highlight'
 import { Inspector } from './Inspector'
+import { SelectionToolbar } from './SelectionToolbar'
 import { estimateTableSize, placeUnpositioned, type Size } from './layout'
 import { RefEdge } from './RefEdge'
 import { TableNode } from './TableNode'
@@ -222,9 +223,14 @@ function CanvasInner() {
         // Mirror React Flow's own selection (box-select, shift-click) into the canvas ui store,
         // since `nodes` is derived and would otherwise drop it on the next render.
         const ui = useCanvasUi.getState()
-        const next = new Set(ui.multiSelect)
+        // Seed from whatever is selected now: with a single table that lives in the shared store,
+        // not in multiSelect, and dropping it here is what made Ctrl+click never reach two.
+        const chosen = useSchemaStore.getState().selection.tableId
+        const next = new Set(ui.multiSelect.length > 0 ? ui.multiSelect : chosen ? [chosen] : [])
         for (const [id, on] of sel) if (on) next.add(id); else next.delete(id)
         ui.setMultiSelect(next.size > 1 ? [...next] : [])
+        // With several tables selected the inspector would only describe one of them.
+        if (next.size > 1) ui.setInspectorOpen(false)
         applySelection(sel, new Map())
       }
     },
@@ -317,8 +323,9 @@ function CanvasInner() {
         }}
         onPaneClick={onPaneClick}
         deleteKeyCode={null}
-        selectionKeyCode={null}
-        multiSelectionKeyCode={null}
+        // Shift+drag draws a selection box; Ctrl/Cmd+click adds or removes one table.
+        selectionKeyCode="Shift"
+        multiSelectionKeyCode={['Meta', 'Control']}
         zoomOnDoubleClick={false}
         elevateEdgesOnSelect
         elevateNodesOnSelect
@@ -336,6 +343,10 @@ function CanvasInner() {
         <Toolbar actions={actions} busy={busy} />
       </ReactFlow>
       <Inspector />
+      <SelectionToolbar
+        actions={actions}
+        onExportSelection={() => window.dispatchEvent(new CustomEvent('erd:export-selection'))}
+      />
     </div>
   )
 }

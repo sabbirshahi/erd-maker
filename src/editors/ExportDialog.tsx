@@ -8,6 +8,8 @@ import { generateDbml } from '@/core/dbml'
 import { exportSql } from '@/core/sql'
 import { generateDjango } from '@/core/django'
 import { useSchemaStore } from '@/store'
+import { useCanvasUi } from '@/canvas/uiStore'
+import { schemaSubset } from '@/canvas/clipboard'
 import { CodeMirrorEditor } from './CodeMirrorEditor'
 import { dbml } from './dbml-language'
 import { CopyButton } from '@/app/CopyButton'
@@ -19,6 +21,8 @@ export interface ExportDialogProps {
   open: boolean
   onClose: () => void
   initialFormat?: ExportFormat
+  /** Open with the export scoped to the canvas selection. */
+  initialSelectionOnly?: boolean
 }
 
 export const EXPORT_FORMATS: Array<{ id: ExportFormat; label: string; file: string; mime: string }> = [
@@ -69,9 +73,20 @@ export function downloadText(fileName: string, text: string, mime = 'text/plain'
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDialogProps) {
+export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSelectionOnly = false }: ExportDialogProps) {
   const [format, setFormat] = useState<ExportFormat>(initialFormat)
-  const schema = useSchemaStore((s) => s.schema)
+  const fullSchema = useSchemaStore((s) => s.schema)
+  const selectedIds = useCanvasUi((s) => s.multiSelect)
+  const [selectionOnly, setSelectionOnly] = useState(initialSelectionOnly)
+  const canScope = selectedIds.length > 0
+  // Memoised: schemaSubset builds a new object, and this feeds the render effect's dependencies,
+  // so recomputing it every render spun into an endless render loop.
+  const selectedKey = selectedIds.join(',')
+  const schema = useMemo(
+    () => (canScope && selectionOnly ? schemaSubset(fullSchema, selectedIds) : fullSchema),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fullSchema, canScope, selectionOnly, selectedKey],
+  )
   const layout = useSchemaStore((s) => s.layout)
   const dbmlText = useSchemaStore((s) => s.dbmlText)
   const origin = useSchemaStore((s) => s.origin)
@@ -79,11 +94,14 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDi
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
-    if (open) setFormat(initialFormat)
+    if (open) {
+      setFormat(initialFormat)
+      setSelectionOnly(initialSelectionOnly)
+    }
   }
 
   // Prefer the user's own DBML formatting when the DBML editor is authoritative.
-  const authored = format === 'dbml' && origin === 'dbml' && dbmlText !== null ? dbmlText : null
+  const authored = format === 'dbml' && origin === 'dbml' && dbmlText !== null && !(canScope && selectionOnly) ? dbmlText : null
   const [rendered, setRendered] = useState<{ text: string; diagnostics: Diagnostic[] }>({ text: '', diagnostics: [] })
   const [loading, setLoading] = useState(false)
 
@@ -141,6 +159,12 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDi
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <span data-testid="export-filename">{meta.file}</span>
+          {canScope && (
+            <label className="flex items-center gap-1" data-testid="export-selection-only">
+              <input type="checkbox" checked={selectionOnly} onChange={(e) => setSelectionOnly(e.target.checked)} />
+              Selected tables only ({selectedIds.length})
+            </label>
+          )}
           {loading && (
             <span data-testid="export-loading" className="text-blue-600 dark:text-blue-400">
               Generating {meta.label}…

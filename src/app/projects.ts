@@ -93,7 +93,9 @@ export function readProject(id: string, storage: Storage = localStorage): SavedD
 
 /** Persist a project's content and stamp `updatedAt` in the index. */
 export function writeProject(id: string, state: ProjectState, storage: Storage = localStorage): boolean {
-  const ok = write(storage, projectKey(id), serializeDoc(state))
+  // Bump the revision so other tabs can tell this write apart from the one they last saw.
+  const rev = (readProject(id, storage)?.rev ?? 0) + 1
+  const ok = write(storage, projectKey(id), serializeDoc(state, rev))
   if (!ok) return false
   const index = readIndex(storage)
   const meta = index.projects.find((p) => p.id === id)

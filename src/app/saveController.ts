@@ -6,17 +6,22 @@
  * and reports the result, so "saved" is something the user can see rather than assume.
  */
 import type { useSchemaStore } from '@/store'
-import { writeProject, type ProjectState } from './projects'
+import { readProject, writeProject, type ProjectState } from './projects'
 
 export const AUTOSAVE_DEBOUNCE_MS = 800
 
-export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error'
+export type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error' | 'conflict'
 
 export interface SaveController {
   status: SaveStatus
   lastSavedAt: string | null
-  /** Write now. Returns false when storage rejected it (quota, private mode). */
-  save: () => boolean
+  /**
+   * Write now. Returns false when storage rejected it (quota, private mode) or when another tab
+   * has saved this project since we last read it — pass `force` to overwrite that deliberately.
+   */
+  save: (force?: boolean) => boolean
+  /** Called when a save was refused because another tab got there first. */
+  onConflict?: (handler: () => void) => void
   /** Point the controller at another project (after switching or creating one). */
   setProject: (id: string) => void
   subscribe: (listener: () => void) => () => void
@@ -44,6 +49,13 @@ export function createSaveController(
 ): SaveController {
   let id = projectId
   let active = armed
+  /**
+   * Revision of the document this tab last read or wrote. Saving compares it with what is in
+   * storage: if another tab wrote in between, this tab's save would silently discard that work,
+   * so it is refused and reported instead.
+   */
+  let base: number | null = readProject(projectId, storage)?.rev ?? null
+  let conflictHandler: (() => void) | null = null
   let status: SaveStatus = 'saved'
   let lastSavedAt: string | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -57,16 +69,25 @@ export function createSaveController(
     notify()
   }
 
-  function save(): boolean {
+  function save(force = false): boolean {
     if (!active) return true
     if (timer) {
       clearTimeout(timer)
       timer = null
     }
+    const stored = readProject(id, storage)
+    if (!force && stored && base !== null && stored.rev !== base) {
+      status = 'conflict'
+      notify()
+      conflictHandler?.()
+      return false
+    }
     setStatus('saving')
     const ok = writeProject(id, snapshot(store), storage)
     if (ok) {
-      lastSavedAt = new Date().toISOString()
+      const written = readProject(id, storage)
+      base = written?.rev ?? null
+      lastSavedAt = written?.savedAt ?? null
       status = 'saved'
     } else {
       status = 'error'
@@ -106,9 +127,13 @@ export function createSaveController(
       id = next
       active = true
       last = store.getState()
+      base = readProject(next, storage)?.rev ?? null
       status = 'saved'
       lastSavedAt = null
       notify()
+    },
+    onConflict(handler) {
+      conflictHandler = handler
     },
     subscribe(listener) {
       listeners.add(listener)

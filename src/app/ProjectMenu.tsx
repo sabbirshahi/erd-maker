@@ -27,6 +27,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
   unsaved: 'Unsaved changes',
   saving: 'Saving…',
   error: 'Could not save',
+  conflict: 'Changed in another tab',
 }
 
 const STATUS_CLASS: Record<SaveStatus, string> = {
@@ -34,6 +35,7 @@ const STATUS_CLASS: Record<SaveStatus, string> = {
   unsaved: 'text-amber-600 dark:text-amber-400',
   saving: 'text-blue-600 dark:text-blue-400',
   error: 'text-red-600 dark:text-red-400',
+  conflict: 'text-amber-600 dark:text-amber-400',
 }
 
 /** Small caps heading that separates the diagram list from the actions below it. */
@@ -230,8 +232,16 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
         data-testid="btn-save"
         title="Save (Ctrl+S)"
         onClick={() => {
-          if (controller.save()) toast(`Saved ${active?.name ?? 'project'}`)
-          else toast('Could not save: browser storage is full or unavailable', 'error')
+          if (controller.save()) {
+            toast(`Saved ${active?.name ?? 'project'}`)
+          } else if (controller.status === 'conflict') {
+            // Another tab saved this project after we loaded it; overwriting is the user's call.
+            if (window.confirm('Another tab saved this diagram after you opened it.\n\nOverwrite it with your version?')) {
+              if (controller.save(true)) toast(`Saved ${active?.name ?? 'project'}`)
+            }
+          } else {
+            toast('Could not save: browser storage is full or unavailable', 'error')
+          }
         }}
       >
         Save

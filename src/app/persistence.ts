@@ -12,6 +12,11 @@ export const AUTOSAVE_DEBOUNCE_MS = 500
 export interface SavedDoc {
   v: number
   savedAt: string
+  /**
+   * Monotonic per-project revision. Timestamps are only millisecond-resolution, so two saves in
+   * the same millisecond look identical; conflict detection compares this instead.
+   */
+  rev: number
   schema: Schema
   layout: Layout
   dbmlText: string | null
@@ -36,16 +41,18 @@ export function migrateDoc(raw: unknown): SavedDoc | null {
   return {
     v: DOC_VERSION,
     savedAt: typeof d.savedAt === 'string' ? d.savedAt : new Date(0).toISOString(),
+    rev: typeof d.rev === 'number' ? d.rev : 0,
     schema: d.schema,
     layout: d.layout && typeof d.layout === 'object' ? (d.layout as Layout) : {},
     dbmlText: typeof d.dbmlText === 'string' ? d.dbmlText : null,
   }
 }
 
-export function serializeDoc(state: { schema: Schema; layout: Layout; dbmlText: string | null }): SavedDoc {
+export function serializeDoc(state: { schema: Schema; layout: Layout; dbmlText: string | null }, rev = 1): SavedDoc {
   return {
     v: DOC_VERSION,
     savedAt: new Date().toISOString(),
+    rev,
     schema: state.schema,
     layout: state.layout,
     dbmlText: state.dbmlText,

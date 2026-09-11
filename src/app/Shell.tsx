@@ -12,6 +12,7 @@ import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog
 import { ProjectMenu } from './ProjectMenu'
 import { ProjectLauncher } from './ProjectLauncher'
 import { getSession } from './session'
+import { startCrossTabSync } from './crossTab'
 import { ProblemsPanel, countBySeverity } from './ProblemsPanel'
 import { shareCurrent } from './share'
 import { useTheme } from './theme'
@@ -97,6 +98,7 @@ export function Shell() {
   const [gallery, setGallery] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [exportSelectionOnly, setExportSelectionOnly] = useState(false)
   const session = getSession()
   const [activeId, setActiveId] = useState(session.activeId)
   const [launcherOpen, setLauncherOpen] = useState(session.needsLauncher)
@@ -106,6 +108,25 @@ export function Shell() {
   const counts = countBySeverity(diagnostics)
 
   // Undo / redo shortcuts (canvas & editors handle their own when focused).
+  // The canvas selection toolbar asks for an export scoped to the selected tables.
+  useEffect(() => {
+    const onExportSelection = () => {
+      setExportSelectionOnly(true)
+      setExportOpen(true)
+    }
+    window.addEventListener('erd:export-selection', onExportSelection)
+    return () => window.removeEventListener('erd:export-selection', onExportSelection)
+  }, [])
+
+  // Another tab on the same project saved: pick the change up live.
+  useEffect(
+    () =>
+      startCrossTabSync(useSchemaStore, session.controller, activeId, {
+        onConflict: () => toast('This diagram changed in another tab. Save or reload to see it.'),
+      }),
+    [session, activeId],
+  )
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
@@ -114,6 +135,7 @@ export function Shell() {
       if (e.key.toLowerCase() === 's') {
         e.preventDefault()
         if (session.controller.save()) toast('Saved')
+        else if (session.controller.status === 'conflict') toast('Another tab saved this diagram. Use Save to overwrite it.', 'error')
         else toast('Could not save: browser storage is full or unavailable', 'error')
         return
       }
@@ -226,7 +248,7 @@ export function Shell() {
             </Button>
           )}
           items={[
-            { id: 'export-dialog', label: 'DBML / SQL / models.py…', onSelect: () => setExportOpen(true) },
+            { id: 'export-dialog', label: 'DBML / SQL / models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
             { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
             { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
             { id: 'export-png', label: 'Export PNG', onSelect: () => void exportCanvasPng() },
@@ -371,7 +393,7 @@ export function Shell() {
         <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       </Pane>
       <Pane name="Export dialog">
-        <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
+        <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} initialSelectionOnly={exportSelectionOnly} />
       </Pane>
     </div>
   )
