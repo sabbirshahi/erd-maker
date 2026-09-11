@@ -59,13 +59,28 @@ export function stripIds(s: Schema): Plain {
   }
 }
 
+/** SQL DDL has no home for `default: null`, and normalises numeric literals (`0.0` -> `0`). */
+function canonicalDefault(d: unknown): string | undefined {
+  if (d === undefined || d === null) return undefined
+  const s = String(d).trim()
+  if (s === '' || /^null$/i.test(s)) return undefined
+  if (/^-?\d+(\.\d+)?$/.test(s)) return String(Number(s))
+  return s
+}
+
 /**
- * Canonical form for comparing schemas that came through SQL: FK-side-first refs (`<` becomes `>`),
- * refs sorted, type names lower-cased, names/aliases/passthrough dropped, pk implies not null.
+ * Canonical form for comparing schemas that came through SQL DDL: FK-side-first refs (`<` becomes
+ * `>`, `-` becomes `>`), refs sorted, ref names dropped, type names lower-cased, pk implies not null,
+ * `default: null` dropped and numeric defaults normalised. Things DDL cannot carry are dropped too:
+ * project/passthrough, table alias + header colour, index type/note, enum value notes.
  */
 export function canonical(s: Schema): Plain {
   const p = stripIds(s)
-  const tables = (p.tables as Plain[]).map((t) => ({
+  const enums = (p.enums as Plain[])
+    .map((e): Plain => ({ ...e, note: undefined, values: (e.values as Plain[]).map((v) => ({ name: v.name })) }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+  const qualified = (t: Plain) => `${t.schema ?? ''}.${t.name}`
+  const tables = [...(p.tables as Plain[])].sort((a, b) => qualified(a).localeCompare(qualified(b))).map((t) => ({
     ...t,
     alias: undefined,
     headerColor: undefined,
@@ -73,17 +88,19 @@ export function canonical(s: Schema): Plain {
       ...c,
       type: String(c.type).toLowerCase(),
       notNull: Boolean(c.notNull) || Boolean(c.pk),
+      default: canonicalDefault(c.default),
     })),
     indexes: (t.indexes as Plain[])
-      .map((i): Plain => ({ ...i, type: undefined }))
+      .map((i): Plain => ({ ...i, type: undefined, note: undefined }))
       .sort((a, b) => JSON.stringify(a.columns).localeCompare(JSON.stringify(b.columns))),
   }))
   const refs = (p.refs as Plain[])
     .map((r) => {
       const kind = r.kind as string
       if (kind === '<') return { ...r, kind: '>', from: r.to, to: r.from, name: undefined }
+      if (kind === '-') return { ...r, kind: '>', name: undefined }
       return { ...r, name: undefined }
     })
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
-  return { enums: p.enums, tables, refs }
+  return { enums, tables, refs }
 }
