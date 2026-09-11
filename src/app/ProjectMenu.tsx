@@ -23,11 +23,11 @@ import { setTabProject } from './session'
 import type { SaveController, SaveStatus } from './saveController'
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
-  saved: 'All changes saved',
-  unsaved: 'Unsaved changes',
+  saved: 'Saved',
+  unsaved: 'Unsaved',
   saving: 'Saving…',
-  error: 'Could not save',
-  conflict: 'Changed in another tab',
+  error: 'Save failed',
+  conflict: 'Changed elsewhere',
 }
 
 const STATUS_CLASS: Record<SaveStatus, string> = {

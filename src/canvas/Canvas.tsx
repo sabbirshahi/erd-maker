@@ -295,7 +295,7 @@ function CanvasInner() {
   useEffect(() => {
     if (initialized && pendingFit.current && schema.tables.length > 0) {
       pendingFit.current = false
-      requestAnimationFrame(() => void rf.fitView({ padding: 0.2, maxZoom: 1 }))
+      requestAnimationFrame(() => void rf.fitView({ padding: 0.25, maxZoom: 1.25 }))
     }
   }, [initialized, schema.tables.length, rf])
 
@@ -339,7 +339,18 @@ function CanvasInner() {
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <Controls showInteractive={false} position="bottom-left" />
-        <MiniMap pannable zoomable position="bottom-right" nodeStrokeWidth={2} className="erd-minimap" />
+        {schema.tables.length >= 6 && (
+          <MiniMap
+            pannable
+            zoomable
+            position="bottom-right"
+            nodeStrokeWidth={2}
+            className="erd-minimap"
+            nodeColor={(n) => schema.tables.find((t) => t.id === n.id)?.headerColor ?? (colorMode === 'dark' ? '#3f3f46' : '#d4d4d8')}
+            nodeStrokeColor={colorMode === 'dark' ? '#52525b' : '#a1a1aa'}
+            maskColor={colorMode === 'dark' ? 'rgb(9 9 11 / 0.6)' : 'rgb(244 244 245 / 0.6)'}
+          />
+        )}
         <Toolbar actions={actions} busy={busy} />
       </ReactFlow>
       <Inspector />

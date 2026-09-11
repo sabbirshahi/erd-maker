@@ -398,3 +398,14 @@ textarea.erd-input {
 .erd-swatch--none {
   background: linear-gradient(135deg, transparent 45%, #ef4444 45%, #ef4444 55%, transparent 55%);
 }
+
+/* ---- minimap ---- */
+/* Unstyled it looked like a grey loading placeholder sitting on the canvas. */
+.erd-minimap {
+  border: 1px solid var(--erd-panel-border);
+  border-radius: 8px;
+  background: var(--erd-panel-bg) !important;
+  box-shadow: 0 4px 14px -6px rgb(0 0 0 / 0.25);
+  overflow: hidden;
+}
+.erd-minimap .react-flow__minimap-node { rx: 2; }

@@ -17,7 +17,7 @@ import { ProblemsPanel, countBySeverity } from './ProblemsPanel'
 import { shareCurrent } from './share'
 import { useTheme } from './theme'
 import { toast } from './toast'
-import { Button, ErrorBoundary, IconButton, Kbd, Menu, Tabs } from './ui'
+import { Button, ErrorBoundary, IconButton, Menu, Tabs } from './ui'
 
 type RightTab = TextView | 'demo'
 
@@ -345,7 +345,11 @@ export function Shell() {
 
       {/* Problems */}
       <footer
-        className={clsx('shrink-0 border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900', prefs.problemsOpen ? 'h-56' : 'h-8')}
+        className={clsx(
+          'shrink-0 border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900',
+          // Open with nothing to show needs one line, not a quarter of the window.
+          prefs.problemsOpen ? (problemsCount > 0 ? 'h-56' : 'h-[4.75rem]') : 'h-8',
+        )}
         data-testid="problems-footer"
       >
         <div className="flex h-8 items-center px-2">
@@ -372,14 +376,9 @@ export function Shell() {
               {problemsCount}
             </span>
           </button>
-          <div className="ml-auto hidden items-center gap-2 text-[11px] text-zinc-400 sm:flex">
-            <span>
-              <Kbd>Ctrl</Kbd>+<Kbd>Z</Kbd> undo
-            </span>
-            <span>
-              <Kbd>Ctrl</Kbd>+<Kbd>Shift</Kbd>+<Kbd>T</Kbd> add table
-            </span>
-          </div>
+          {problemsCount === 0 && !prefs.problemsOpen && (
+            <span className="ml-2 text-[11px] text-zinc-400">No problems</span>
+          )}
         </div>
         {prefs.problemsOpen && (
           <div className="h-[calc(100%-2rem)]">

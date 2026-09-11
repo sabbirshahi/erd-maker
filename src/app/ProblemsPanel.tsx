@@ -113,7 +113,7 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
             <SeverityIcon severity={sev} /> {sev}s <span className="tabular-nums">{counts[sev]}</span>
           </button>
         ))}
-        <label className="ml-auto inline-flex items-center gap-1 text-zinc-600 dark:text-zinc-300">
+        <label className="ml-1 inline-flex items-center gap-1 border-l border-zinc-200 pl-3 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
           <input type="checkbox" data-testid="filter-lossy" checked={lossyOnly} onChange={(e) => setLossyOnly(e.target.checked)} />
           lossy only
         </label>

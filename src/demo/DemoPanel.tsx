@@ -2,7 +2,7 @@
  * Demo panel: boots real Django + SQLite in the browser (Pyodide worker), seeds fake rows for the
  * current schema, and runs SQL / ORM snippets against them. OWNER: worker-5 (demo). Plan §3 Phase 5.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { clsx } from 'clsx'
 import { Prec } from '@codemirror/state'
 import { keymap } from '@codemirror/view'
@@ -528,6 +528,12 @@ function Grid({ columns, rows }: { columns: string[]; rows: unknown[][] }) {
     return () => ro?.disconnect()
   }, [])
 
+  useEffect(() => {
+    // A new result starts at the top; keeping the old offset looked like a broken grid.
+    setScrollTop(0)
+    if (ref.current) ref.current.scrollTop = 0
+  }, [rows, columns])
+
   const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN)
   const visible = Math.ceil(height / ROW_H) + OVERSCAN * 2
   const end = Math.min(rows.length, start + visible)
@@ -535,14 +541,43 @@ function Grid({ columns, rows }: { columns: string[]; rows: unknown[][] }) {
 
   const cell =
     'max-w-72 truncate border-b border-zinc-100 px-2 font-mono text-xs dark:border-zinc-800'
-  let body: ReactNode
   if (rows.length === 0) {
-    body = <div className="px-3 py-2 text-xs text-zinc-400">No rows.</div>
-  } else {
-    body = (
-      <div style={{ height: rows.length * ROW_H, position: 'relative' }}>
-        <table className="absolute left-0 border-collapse" style={{ top: start * ROW_H }}>
+    return (
+      <div className="flex h-full flex-col" data-testid="demo-result">
+        <div className="px-3 py-2 text-xs text-zinc-400">No rows.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-full flex-col" data-testid="demo-result">
+      {/*
+        One table, not two. The header used to live in its own table above the scroller, so its
+        columns could not line up with the body's and the first visible row was clipped by the
+        scroll offset. A sticky thead inside the scroller keeps the columns shared, and spacer rows
+        carry the virtualised height.
+      */}
+      <div
+        ref={ref}
+        className="min-h-0 flex-1 overflow-auto"
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      >
+        <table className="w-full border-collapse">
+          <thead className="sticky top-0 z-10">
+            <tr style={{ height: ROW_H }} className="bg-zinc-50 dark:bg-zinc-900">
+              <th className={clsx(cell, 'border-b-zinc-200 text-right font-medium text-zinc-400 dark:border-b-zinc-700')}>#</th>
+              {columns.map((c) => (
+                <th
+                  key={c}
+                  className={clsx(cell, 'border-b-zinc-200 text-left font-medium text-zinc-600 dark:border-b-zinc-700 dark:text-zinc-300')}
+                >
+                  {c}
+                </th>
+              ))}
+            </tr>
+          </thead>
           <tbody>
+            {start > 0 && <tr aria-hidden style={{ height: start * ROW_H }} />}
             {slice.map((r, i) => (
               <tr
                 key={start + i}
@@ -563,37 +598,9 @@ function Grid({ columns, rows }: { columns: string[]; rows: unknown[][] }) {
                 ))}
               </tr>
             ))}
+            {end < rows.length && <tr aria-hidden style={{ height: (rows.length - end) * ROW_H }} />}
           </tbody>
         </table>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex h-full flex-col" data-testid="demo-result">
-      <div className="shrink-0 overflow-hidden border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-        <table className="border-collapse">
-          <thead>
-            <tr style={{ height: ROW_H }}>
-              <th className={clsx(cell, 'text-right font-medium text-zinc-400')}>#</th>
-              {columns.map((c) => (
-                <th
-                  key={c}
-                  className={clsx(cell, 'text-left font-medium text-zinc-600 dark:text-zinc-300')}
-                >
-                  {c}
-                </th>
-              ))}
-            </tr>
-          </thead>
-        </table>
-      </div>
-      <div
-        ref={ref}
-        className="min-h-0 flex-1 overflow-auto"
-        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-      >
-        {body}
       </div>
     </div>
   )
