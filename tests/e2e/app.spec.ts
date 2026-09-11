@@ -109,6 +109,16 @@ test.describe('app shell', () => {
     expect(await isDark()).toBe(!before)
   })
 
+  test('right pane tabs mount the real DBML, Django and Demo panes', async ({ page }) => {
+    await page.goto(URL)
+    await expect(page.getByTestId('dbml-pane')).toBeVisible()
+    await page.getByRole('tab', { name: 'Django' }).click()
+    await expect(page.getByTestId('django-pane')).toBeVisible()
+    await page.getByRole('tab', { name: 'Demo' }).click()
+    await expect(page.getByTestId('demo-panel')).toBeVisible()
+    await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(0)
+  })
+
   test('Export PNG downloads a rendered image of the canvas', async ({ page }) => {
     await page.goto(URL)
     await page.getByTestId('btn-examples').click()
