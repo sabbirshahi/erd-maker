@@ -350,8 +350,11 @@ class Thing(Base):
         expect.stringContaining('Meta.managed is not preserved'),
         expect.stringContaining('only Index and UniqueConstraint'),
         expect.stringContaining('Unsupported statement in class Meta'),
+        expect.stringContaining('IntegerChoices Level becomes a string enum'),
       ]),
     )
+    expect(diagnostics.find((d) => d.message.startsWith('IntegerChoices'))).toMatchObject({ severity: 'info', lossy: true, line: 12 })
+    expect(generateDjango(schema!).text).toContain("    level = models.CharField(max_length=1, choices=Level.choices, default=Level._2)")
   })
 
   it('keeps unknown fields, kwargs, on_delete callables and inline choices verbatim', async () => {

@@ -376,6 +376,16 @@ function parseEnum(c: ClassInfo, b: Builder): void {
   b.schema.enums.push(e)
   b.enumsByClass.set(c.name, e)
   b.enumMembers.set(c.name, members)
+  if (c.bases.some((base) => lastSegment(base) === 'IntegerChoices'))
+    b.diagnostics.push(
+      diag({
+        severity: 'info',
+        source: 'typemap',
+        lossy: true,
+        message: `IntegerChoices ${c.name} becomes a string enum: it is regenerated as TextChoices and its field as CharField`,
+        ...pos(c.node),
+      }),
+    )
 }
 
 // ---------- models ----------
