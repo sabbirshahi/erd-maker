@@ -334,3 +334,42 @@ describe('createTextSync', () => {
     })
   })
 })
+
+describe('detach/attach (React StrictMode safety)', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  // Regression: the hook used to dispose() on effect cleanup. StrictMode runs mount -> cleanup ->
+  // mount in development, which permanently unsubscribed the memoised engine: panes rendered once
+  // and then froze, typing never committed, and only a page refresh appeared to fix it. Production
+  // builds do not double-invoke effects, so the e2e suite could not see this.
+  it('keeps working after a detach/attach cycle', async () => {
+    const made = makeStore()
+    const gen = vi.fn(generate)
+    const sync = createTextSync(made.store, { view: 'dbml', parse: parseOk, generate: gen, reconcile: passthrough })
+    sync.detach()
+    sync.attach()
+
+    // External commits still reach the pane.
+    made.canvasEdit((s) => s.tables.push(newTable({ name: 'after_remount' })))
+    expect(sync.text).toContain('after_remount')
+
+    // And the pane can still commit its own edits.
+    sync.onChange('Table typed {}')
+    await vi.advanceTimersByTimeAsync(300)
+    const origins = (made.store.getState().commit as unknown as { mock: { calls: Origin[][] } }).mock.calls.map((c) => c[0])
+    expect(origins).toContain('dbml')
+    sync.dispose()
+  })
+
+  it('catches up on changes committed while detached', () => {
+    const made = makeStore()
+    const sync = createTextSync(made.store, { view: 'dbml', parse: parseOk, generate, reconcile: passthrough })
+    sync.detach()
+    made.canvasEdit((s) => s.tables.push(newTable({ name: 'missed_while_detached' })))
+    expect(sync.text).not.toContain('missed_while_detached')
+    sync.attach()
+    expect(sync.text).toContain('missed_while_detached')
+    sync.dispose()
+  })
+})

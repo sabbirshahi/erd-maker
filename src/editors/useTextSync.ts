@@ -60,6 +60,10 @@ export interface TextSync {
   flush(): Promise<void>
   /** Subscribe to display-text / diagnostics changes. */
   onUpdate(listener: () => void): () => void
+  /** Re-subscribe to the store after `detach()` (safe to call when already attached). */
+  attach(): void
+  /** Drop the store subscription and any pending debounce, keeping the engine reusable. */
+  detach(): void
   dispose(): void
 }
 
@@ -110,7 +114,9 @@ export function createTextSync(store: TextSyncStoreLike, opts: TextSyncOptions):
     }
   }
 
-  const unsubscribe = store.subscribe((s, prev) => {
+  type StoreState = ReturnType<TextSyncStoreLike['getState']>
+
+  function onStoreChange(s: StoreState, prev: StoreState) {
     if (s.version === prev.version) return
     if (s.origin === opts.view) return
     if (focused && dirty) {
@@ -118,7 +124,33 @@ export function createTextSync(store: TextSyncStoreLike, opts: TextSyncOptions):
       return
     }
     regenerateFromStore()
-  })
+  }
+
+  /**
+   * The store subscription, held only while a view is mounted. React StrictMode mounts effects
+   * twice in development (mount -> cleanup -> mount), so this must survive a detach/attach cycle:
+   * disposing here instead would leave the engine permanently unsubscribed and the pane frozen at
+   * whatever text it held when it was created.
+   */
+  let unsub: (() => void) | null = store.subscribe(onStoreChange)
+
+  function attach() {
+    if (disposed || unsub) return
+    unsub = store.subscribe(onStoreChange)
+    // Catch up on anything committed while detached (our own text stays authoritative).
+    if (!(focused && dirty) && store.getState().origin !== opts.view) regenerateFromStore()
+  }
+
+  function detach() {
+    if (unsub) {
+      unsub()
+      unsub = null
+    }
+    if (timer !== null) {
+      timers.clear(timer)
+      timer = null
+    }
+  }
 
   async function runParse(source: string): Promise<void> {
     const seq = ++parseSeq
@@ -199,10 +231,11 @@ export function createTextSync(store: TextSyncStoreLike, opts: TextSyncOptions):
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
+    attach,
+    detach,
     dispose() {
       disposed = true
-      unsubscribe()
-      if (timer !== null) timers.clear(timer)
+      detach()
       listeners.clear()
     },
   }
@@ -227,10 +260,13 @@ export function useTextSync(opts: TextSyncOptions) {
   )
   const [, setTick] = useState(0)
   useEffect(() => {
+    // attach/detach, not dispose: StrictMode runs this twice in development and the engine instance
+    // is memoised, so disposing on cleanup would kill it for the rest of the component's life.
+    sync.attach()
     const off = sync.onUpdate(() => setTick((t) => t + 1))
     return () => {
       off()
-      sync.dispose()
+      sync.detach()
     }
   }, [sync])
   return sync

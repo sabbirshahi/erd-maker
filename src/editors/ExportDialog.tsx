@@ -85,16 +85,23 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDi
   // Prefer the user's own DBML formatting when the DBML editor is authoritative.
   const authored = format === 'dbml' && origin === 'dbml' && dbmlText !== null ? dbmlText : null
   const [rendered, setRendered] = useState<{ text: string; diagnostics: Diagnostic[] }>({ text: '', diagnostics: [] })
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (authored !== null) {
+      setLoading(false)
       setRendered({ text: authored, diagnostics: [] })
       return
     }
-    // Stale-response guard: only the newest render may set state.
+    // The SQL formats load @dbml/core on demand, which takes a moment the first time. Clear the
+    // preview while that runs: showing the previous format's text reads as a wrong export.
     let live = true
+    setLoading(true)
+    setRendered({ text: '', diagnostics: [] })
     void renderExport(format, schema, layout).then((r) => {
-      if (live) setRendered(r)
+      if (!live) return
+      setRendered(r)
+      setLoading(false)
     })
     return () => {
       live = false
@@ -134,6 +141,11 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDi
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <span data-testid="export-filename">{meta.file}</span>
+          {loading && (
+            <span data-testid="export-loading" className="text-blue-600 dark:text-blue-400">
+              Generating {meta.label}…
+            </span>
+          )}
           <span className="flex-1" />
           <span data-testid="export-copy">
             <CopyButton text={text} label={meta.label} />
@@ -141,8 +153,9 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDi
           <button
             type="button"
             data-testid="export-download"
+            disabled={loading || text === ''}
             onClick={() => downloadText(meta.file, text, meta.mime)}
-            className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+            className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Download
           </button>
