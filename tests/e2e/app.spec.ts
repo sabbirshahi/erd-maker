@@ -25,9 +25,9 @@ test.describe('app shell', () => {
     await expect(page.getByTestId('empty-state')).toBeHidden()
     await expect.poll(() => tableNames(page)).toEqual(['users', 'posts', 'tags', 'comments'])
 
-    // Tables render on the canvas (React Flow nodes) once the canvas has landed.
-    const nodes = page.locator('.react-flow__node')
-    if ((await nodes.count()) > 0) await expect(nodes).toHaveCount(4)
+    // Tables render on the canvas (one React Flow node per table).
+    await expect(page.getByTestId('canvas')).toBeVisible()
+    await expect(page.getByTestId('table-node')).toHaveCount(4)
 
     // Zero error diagnostics.
     await page.waitForTimeout(600)

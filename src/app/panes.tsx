@@ -1,20 +1,20 @@
 /**
- * Lazy bridges to sibling workers' components. Uses `import.meta.glob` so the shell
- * typechecks and builds whether or not `src/canvas`, `src/editors`, `src/demo` exist yet.
+ * Lazy panes for sibling workers' components. Canvas (worker-2) and editors (worker-3) have landed and
+ * are imported directly (code-split via React.lazy). The demo (worker-5) is still absent, so it keeps an
+ * `import.meta.glob` bridge that resolves to a placeholder until `src/demo/index.ts(x)` exists.
  * Each pane is wrapped in Suspense + ErrorBoundary by the shell so a broken pane never kills it.
  */
 import { lazy, type ComponentType } from 'react'
 
 type Loader = () => Promise<Record<string, unknown>>
 
-const canvasMods = import.meta.glob<Record<string, unknown>>(['/src/canvas/index.tsx', '/src/canvas/index.ts'])
-const editorMods = import.meta.glob<Record<string, unknown>>(['/src/editors/index.tsx', '/src/editors/index.ts'])
 const demoMods = import.meta.glob<Record<string, unknown>>(['/src/demo/index.tsx', '/src/demo/index.ts'])
 
 function firstLoader(mods: Record<string, Loader>): Loader | undefined {
   return Object.values(mods)[0]
 }
 
+/** Lazy-load a named export from a globbed module, falling back to `fallback` if absent or broken. */
 export function lazyExport<P extends object>(
   mods: Record<string, Loader>,
   name: string,
@@ -37,7 +37,7 @@ export function lazyExport<P extends object>(
 export function Placeholder({ name, hint }: { name: string; hint?: string }) {
   return (
     <div
-      data-testid={`placeholder-${name.toLowerCase()}`}
+      data-testid={`placeholder-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
       className="flex h-full w-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-zinc-400"
     >
       <div className="font-medium text-zinc-500 dark:text-zinc-400">{name}</div>
@@ -51,23 +51,16 @@ export interface DialogProps {
   onClose: () => void
 }
 
-const NullDialog = (_props: DialogProps) => null
+// Direct imports — these modules exist. React.lazy keeps xyflow / codemirror out of the entry chunk.
+export const Canvas = lazy(() => import('@/canvas').then((m) => ({ default: m.Canvas })))
+export const DbmlEditor = lazy(() => import('@/editors').then((m) => ({ default: m.DbmlEditor })))
+export const DjangoEditor = lazy(() => import('@/editors').then((m) => ({ default: m.DjangoEditor })))
+export const ImportDialog = lazy(() => import('@/editors').then((m) => ({ default: m.ImportDialog })))
+export const ExportDialog = lazy(() => import('@/editors').then((m) => ({ default: m.ExportDialog })))
 
-export const Canvas = lazyExport<Record<string, never>>(canvasMods, 'Canvas', () => (
-  <Placeholder name="Canvas" hint="worker-2 is building the diagram canvas." />
-))
-export const DbmlEditor = lazyExport<Record<string, never>>(editorMods, 'DbmlEditor', () => (
-  <Placeholder name="DBML editor" hint="worker-3 is building the editors." />
-))
-export const DjangoEditor = lazyExport<Record<string, never>>(editorMods, 'DjangoEditor', () => (
-  <Placeholder name="Django editor" hint="worker-3 is building the editors." />
-))
+// Demo — bridge until worker-5 lands `src/demo`.
 export const DemoPanel = lazyExport<Record<string, never>>(demoMods, 'DemoPanel', () => (
   <Placeholder name="Demo" hint="worker-5 is building the in-browser Django demo." />
 ))
-export const ImportDialog = lazyExport<DialogProps>(editorMods, 'ImportDialog', NullDialog)
-export const ExportDialog = lazyExport<DialogProps>(editorMods, 'ExportDialog', NullDialog)
 
-export const hasEditors = Boolean(firstLoader(editorMods))
-export const hasCanvas = Boolean(firstLoader(canvasMods))
 export const hasDemo = Boolean(firstLoader(demoMods))
