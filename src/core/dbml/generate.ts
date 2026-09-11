@@ -7,7 +7,7 @@
  * (inline `[ref: ...]` settings are never produced).
  */
 import type { Column, Enum, Index, Ref, RefEndpoint, Schema, Table } from '../schema'
-import { quoteDbmlString } from './parse'
+import { quoteDbmlString } from './strings'
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/
 /** Type base names may carry a schema qualifier or array suffix, e.g. `auth.role`, `int[]`. */

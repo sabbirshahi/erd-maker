@@ -9,6 +9,7 @@
 import { CompilerError, Parser } from '@dbml/core'
 import type { Column, Diagnostic, Enum, Index, Ref, RefAction, RefKind, Schema, Table } from '../schema'
 import { diag, emptySchema, newId } from '../schema'
+import { quoteDbmlString } from './strings'
 
 // ---------- minimal structural view of the @dbml/core model (runtime shape verified against 10.1.1) ----------
 
@@ -141,14 +142,7 @@ function toAction(value: string | null | undefined): RefAction | undefined {
   return ACTIONS.find((a) => a === v)
 }
 
-/** Escape a string for a single-quoted DBML literal body. */
-export function escapeDbmlString(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n')
-}
-
-export function quoteDbmlString(s: string): string {
-  return `'${escapeDbmlString(s)}'`
-}
+export { escapeDbmlString, quoteDbmlString } from './strings'
 
 /** Raw DBML default expression from the model's `{type, value}` default. */
 export function defaultToDbml(d: DbDefault): string {
