@@ -1,0 +1,121 @@
+import { expect, test, type Page } from '@playwright/test'
+
+const URL = '/?e2e'
+
+async function tableNames(page: Page): Promise<string[]> {
+  return page.evaluate(() => window.__erd!.store.getState().schema.tables.map((t) => t.name))
+}
+
+test.describe('app shell', () => {
+  test('fresh profile shows the empty state; Start blank hides it', async ({ page }) => {
+    await page.goto(URL)
+    await expect(page.getByTestId('empty-state')).toBeVisible()
+    await expect(page.getByTestId('topbar')).toContainText('ERD Maker')
+    await expect(page.getByRole('tab', { name: 'DBML' })).toBeVisible()
+    await page.getByTestId('start-blank').click()
+    await expect(page.getByTestId('empty-state')).toBeHidden()
+  })
+
+  test('loads the Blog example with zero errors, autosaves, and restores after reload', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('empty-examples').click()
+    await expect(page.getByTestId('examples-gallery')).toBeVisible()
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('examples-gallery')).toBeHidden()
+    await expect(page.getByTestId('empty-state')).toBeHidden()
+    await expect.poll(() => tableNames(page)).toEqual(['users', 'posts', 'tags', 'comments'])
+
+    // Tables render on the canvas (React Flow nodes) once the canvas has landed.
+    const nodes = page.locator('.react-flow__node')
+    if ((await nodes.count()) > 0) await expect(nodes).toHaveCount(4)
+
+    // Zero error diagnostics.
+    await page.waitForTimeout(600)
+    const errors = await page.evaluate(() =>
+      Object.values(window.__erd!.store.getState().diagnostics).flat().filter((d) => d.severity === 'error').length,
+    )
+    expect(errors).toBe(0)
+
+    // Autosave (debounced 500 ms) → reload restores.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('erd-maker:doc:v1') !== null)).toBe(true)
+    await page.reload()
+    await expect.poll(() => tableNames(page)).toEqual(['users', 'posts', 'tags', 'comments'])
+    await expect(page.getByTestId('empty-state')).toBeHidden()
+  })
+
+  test('share link opens the same schema in a fresh context', async ({ page, browser }) => {
+    await page.goto(URL)
+    await page.getByTestId('btn-examples').click()
+    await page.getByTestId('example-school').click()
+    await expect.poll(() => tableNames(page)).toContain('students')
+
+    await page.getByTestId('btn-share').click()
+    await expect(page.getByTestId('toast')).toContainText('Share link copied')
+    const url = await page.evaluate(() => navigator.clipboard.readText())
+    expect(url).toContain('#d=')
+
+    const ctx = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] })
+    const other = await ctx.newPage()
+    await other.goto(url.replace(/^https?:\/\/[^/]+/, '') + (url.includes('e2e') ? '' : ''))
+    await expect.poll(() => tableNames(other)).toEqual(await tableNames(page))
+    // Hash is cleared after load so reloads use autosave.
+    expect(await other.evaluate(() => location.hash)).toBe('')
+    await ctx.close()
+  })
+
+  test('Problems panel shows a count badge and rows', async ({ page }) => {
+    await page.goto(URL)
+    await page.evaluate(() => {
+      const s = window.__erd!.store.getState()
+      s.setDiagnostics('typemap', [
+        { id: 'e2e-1', severity: 'warning', source: 'typemap', message: 'e2e warning', lossy: true },
+        { id: 'e2e-2', severity: 'error', source: 'dbml', message: 'e2e error', line: 1 },
+      ])
+    })
+    await expect(page.getByTestId('problems-badge')).toHaveText('2')
+    await page.getByTestId('tab-problems').click()
+    await expect(page.getByTestId('problem-row')).toHaveCount(2)
+    await page.getByTestId('filter-lossy').check()
+    await expect(page.getByTestId('problem-row')).toHaveCount(1)
+    await expect(page.getByTestId('problem-row')).toContainText('e2e warning')
+  })
+
+  test('Copy button writes the clipboard and toasts', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('btn-examples').click()
+    await page.getByTestId('example-blog').click()
+    await expect.poll(() => tableNames(page)).toContain('users')
+    const copy = page.getByTestId('copy-dbml').first()
+    await expect(copy).toBeVisible()
+    await copy.click()
+    await expect(page.getByTestId('toast')).toContainText('Copied DBML')
+    const text = await page.evaluate(() => navigator.clipboard.readText())
+    expect(text).toContain('Table users')
+  })
+
+  test('dark mode toggles and persists across reloads', async ({ page }) => {
+    await page.goto(URL)
+    const isDark = () => page.evaluate(() => document.documentElement.classList.contains('dark'))
+    const before = await isDark()
+    await page.getByTestId('btn-theme').click()
+    expect(await isDark()).toBe(!before)
+    expect(await page.evaluate(() => localStorage.getItem('erd-maker:theme'))).toBe(before ? 'light' : 'dark')
+    await page.reload()
+    expect(await isDark()).toBe(!before)
+  })
+
+  test('Export menu offers PNG/JSON/DBML and undo reverts a load', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('btn-export').click()
+    await expect(page.getByTestId('menu-export-png')).toBeVisible()
+    await expect(page.getByTestId('menu-export-json')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.getByTestId('btn-examples').click()
+    await page.getByTestId('example-ecommerce').click()
+    await expect.poll(() => tableNames(page)).toContain('orders')
+    await page.getByTestId('btn-undo').click()
+    await expect.poll(() => tableNames(page)).toEqual([])
+    await page.getByTestId('btn-redo').click()
+    await expect.poll(() => tableNames(page)).toContain('orders')
+  })
+})

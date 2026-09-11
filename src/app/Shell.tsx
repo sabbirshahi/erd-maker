@@ -5,7 +5,6 @@
 import { clsx } from 'clsx'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSchemaStore, useAllDiagnostics, undo, redo, type TextView } from '@/store'
-import { CopyButton } from './CopyButton'
 import { EmptyState } from './EmptyState'
 import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng } from './exportPng'
@@ -273,11 +272,6 @@ export function Shell() {
                 { id: 'demo', label: 'Demo' },
               ]}
             />
-            <div className="ml-auto flex items-center gap-1">
-              {prefs.tab === 'dbml' && (
-                <CopyButton label="DBML" text={() => useSchemaStore.getState().dbmlText ?? generateDbml(useSchemaStore.getState().schema)} />
-              )}
-            </div>
           </div>
           <div className="min-h-0 flex-1">
             <div className={clsx('h-full', prefs.tab !== 'dbml' && 'hidden')}>
