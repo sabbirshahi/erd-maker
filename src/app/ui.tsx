@@ -214,10 +214,12 @@ export function Menu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
     }
-    document.addEventListener('mousedown', onDown)
+    // Capture phase: the canvas stops mousedown from bubbling while it starts a pan or a drag, so
+    // a bubbling listener never sees clicks on the canvas and the menu would stay open over it.
+    document.addEventListener('mousedown', onDown, true)
     document.addEventListener('keydown', onKey)
     return () => {
-      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('mousedown', onDown, true)
       document.removeEventListener('keydown', onKey)
     }
   }, [open])
