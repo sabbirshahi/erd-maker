@@ -10,6 +10,7 @@ import { indentWithTab } from '@codemirror/commands'
 import { basicSetup } from 'codemirror'
 import { lintGutter, setDiagnostics as cmSetDiagnostics, type Diagnostic as CmDiagnostic } from '@codemirror/lint'
 import type { Diagnostic } from '@/core/schema'
+import { quickFixesFor } from './quickfix'
 
 /** Marks transactions that mirror an external (store) change. */
 export const externalChange = Annotation.define<boolean>()
@@ -87,12 +88,23 @@ export function toCmDiagnostics(doc: string, diagnostics: Diagnostic[]): CmDiagn
     if (from > doc.length) from = doc.length
     if (to > doc.length) to = doc.length
     if (to < from) to = from
+    const fixes = quickFixesFor(doc, d, d.source === 'django' ? '#' : '//')
     out.push({
       from,
       to,
       severity: d.severity,
       message: d.message,
       source: d.source,
+      // Rendered as buttons in the lint tooltip; applied as a normal edit so it is undoable and
+      // flows back through parse -> sync like anything the user typed.
+      actions: fixes.map((f) => ({
+        name: f.name,
+        apply(view: EditorView) {
+          const current = view.state.doc.toString()
+          const change = minimalChange(current, f.apply(current))
+          if (change) view.dispatch({ changes: change, userEvent: 'input.quickfix' })
+        },
+      })),
     })
   }
   return out
