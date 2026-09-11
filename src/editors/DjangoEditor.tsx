@@ -1,10 +1,10 @@
 /**
- * Django models.py pane: generated from the schema; editable once worker-4's parser lands.
+ * Django models.py pane: generated from the schema; editable (parseDjango via tree-sitter, worker-4).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { python } from '@codemirror/lang-python'
-import { generateDjango, initDjangoParser, parseDjango, type DjangoParseResult } from '@/core/django'
-import type { Diagnostic, Schema } from '@/core/schema'
+import { generateDjango, initDjangoParser, parseDjango } from '@/core/django'
+import type { Schema } from '@/core/schema'
 import { reconcile } from '@/core/reconcile'
 import { useSchemaStore } from '@/store'
 import { CodeMirrorEditor, type CodeMirrorEditorHandle } from './CodeMirrorEditor'
@@ -15,8 +15,6 @@ import { useGotoLine } from './goto'
 export interface DjangoEditorProps {
   className?: string
 }
-
-const STUB_MARKER = 'not implemented'
 
 /** Generate models.py and publish the generator's (typemap) diagnostics. */
 function generateWithDiagnostics(schema: Schema): string {
@@ -33,8 +31,7 @@ function generateWithDiagnostics(schema: Schema): string {
 
 export function DjangoEditor({ className }: DjangoEditorProps) {
   const handle = useRef<CodeMirrorEditorHandle>(null)
-  const [parserMissing, setParserMissing] = useState<boolean | null>(null)
-  const [userReadOnly, setUserReadOnly] = useState(false)
+  const [readOnly, setReadOnly] = useState(false)
   const initStarted = useRef(false)
 
   const ensureParser = useCallback(async () => {
@@ -51,34 +48,13 @@ export function DjangoEditor({ className }: DjangoEditorProps) {
     view: 'django',
     parse: async (text) => {
       await ensureParser()
-      const result: DjangoParseResult = await parseDjango(text)
-      if (result.diagnostics.some((d: Diagnostic) => d.message.includes(STUB_MARKER))) {
-        setParserMissing(true)
-        // Don't surface the stub as a user-facing error; the pane is read-only instead.
-        return { diagnostics: [] }
-      }
-      return result
+      return parseDjango(text)
     },
     generate: generateWithDiagnostics,
     reconcile,
   })
   const extensions = useMemo(() => [python()], [])
   useGotoLine('django', handle)
-
-  // Probe the parser once so the read-only badge is right before the user types.
-  useEffect(() => {
-    let cancelled = false
-    parseDjango('# probe\n')
-      .then((r: DjangoParseResult) => {
-        if (!cancelled) setParserMissing(r.diagnostics.some((d: Diagnostic) => d.message.includes(STUB_MARKER)))
-      })
-      .catch(() => {
-        if (!cancelled) setParserMissing(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   // Publish typemap diagnostics for the initial schema too.
   useEffect(() => {
@@ -87,7 +63,6 @@ export function DjangoEditor({ className }: DjangoEditorProps) {
 
   useEffect(() => () => void sync.flush(), [sync])
 
-  const readOnly = userReadOnly || parserMissing === true
   const errors = sync.diagnostics.filter((d) => d.severity === 'error').length
 
   return (
@@ -97,22 +72,12 @@ export function DjangoEditor({ className }: DjangoEditorProps) {
         <span data-testid="django-status" className="text-zinc-400">
           {sync.dirty ? 'syncing…' : errors ? `${errors} error${errors === 1 ? '' : 's'}` : 'synced'}
         </span>
-        {parserMissing && (
-          <span
-            data-testid="django-readonly-badge"
-            className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-            title="Editing models.py will be enabled when the Django parser lands"
-          >
-            read-only until parser lands
-          </span>
-        )}
         <span className="flex-1" />
         <button
           type="button"
           data-testid="django-readonly-toggle"
           aria-pressed={readOnly}
-          disabled={parserMissing === true}
-          onClick={() => setUserReadOnly((v) => !v)}
+          onClick={() => setReadOnly((v) => !v)}
           className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           title={readOnly ? 'Enable editing' : 'Make read-only'}
         >
