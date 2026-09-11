@@ -18,9 +18,9 @@ describe('examples registry', () => {
     expect(res.schema?.tables.length ?? 0).toBeGreaterThan(0)
   })
 
-  it('loadExample maps a name-keyed layout onto table ids', () => {
+  it('loadExample maps a name-keyed layout onto table ids', async () => {
     const ex = { ...findExample('blog')!, layout: { users: { x: 10, y: 20 } } }
-    const res = loadExample(ex)
+    const res = await loadExample(ex)
     expect(res.ok).toBe(true)
     if (!res.ok) return
     const users = res.doc.schema.tables.find((t) => t.name === 'users')!

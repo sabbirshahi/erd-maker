@@ -1,5 +1,4 @@
 import type { Layout, Schema } from '@/core/schema'
-import { parseDbml } from '@/core/dbml'
 import blog from './blog.dbml?raw'
 import ecommerce from './ecommerce.dbml?raw'
 import school from './school.dbml?raw'
@@ -64,7 +63,11 @@ export interface LoadedExample {
  * Parse an example into a schema + id-keyed layout. Returns diagnostics on failure
  * (examples are expected to parse with zero errors — see acceptance criterion 17).
  */
-export function loadExample(example: Example): { ok: true; doc: LoadedExample } | { ok: false; error: string } {
+export type LoadExampleResult = { ok: true; doc: LoadedExample } | { ok: false; error: string }
+
+export async function loadExample(example: Example): Promise<LoadExampleResult> {
+  // Dynamic import: @dbml/core is the largest chunk in the bundle; only pay for it when an example is loaded.
+  const { parseDbml } = await import('@/core/dbml')
   const res = parseDbml(example.dbml)
   if (!res.schema) {
     const first = res.diagnostics.find((d) => d.severity === 'error')

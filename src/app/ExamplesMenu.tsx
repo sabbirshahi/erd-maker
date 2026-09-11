@@ -6,8 +6,8 @@ import { useSchemaStore } from '@/store'
 import { toast } from './toast'
 import { Modal } from './ui'
 
-export function applyExample(example: Example): boolean {
-  const res = loadExample(example)
+export async function applyExample(example: Example): Promise<boolean> {
+  const res = await loadExample(example)
   if (!res.ok) {
     toast(`Could not load "${example.title}": ${res.error}`, 'error')
     return false
@@ -72,7 +72,9 @@ export function ExamplesGallery({ open, onClose }: { open: boolean; onClose: () 
               type="button"
               data-testid={`example-${ex.id}`}
               onClick={() => {
-                if (applyExample(ex)) onClose()
+                void applyExample(ex).then((ok) => {
+                  if (ok) onClose()
+                })
               }}
               className="group flex flex-col overflow-hidden rounded-lg border border-zinc-200 text-left transition hover:border-indigo-400 hover:shadow-md dark:border-zinc-700 dark:hover:border-indigo-400"
             >
