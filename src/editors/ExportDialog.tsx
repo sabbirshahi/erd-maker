@@ -1,7 +1,7 @@
 /**
  * Export dialog (M2 / M8): DBML, Postgres, MySQL, SQLite, Django models.py, JSON.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { python } from '@codemirror/lang-python'
 import type { Diagnostic, Layout, Schema } from '@/core/schema'
 import { generateDbml } from '@/core/dbml'
@@ -30,8 +30,11 @@ export const EXPORT_FORMATS: Array<{ id: ExportFormat; label: string; file: stri
   { id: 'json', label: 'JSON', file: 'schema.json', mime: 'application/json' },
 ]
 
-/** Produce the export text + diagnostics for a format. Pure; never throws. */
-export function renderExport(format: ExportFormat, schema: Schema, layout: Layout): { text: string; diagnostics: Diagnostic[] } {
+/**
+ * Produce the export text + diagnostics for a format. Never throws.
+ * Async because the SQL exporters load @dbml/core on demand (it stays out of the main chunk).
+ */
+export async function renderExport(format: ExportFormat, schema: Schema, layout: Layout): Promise<{ text: string; diagnostics: Diagnostic[] }> {
   try {
     switch (format) {
       case 'dbml':
@@ -39,7 +42,7 @@ export function renderExport(format: ExportFormat, schema: Schema, layout: Layou
       case 'postgres':
       case 'mysql':
       case 'sqlite':
-        return exportSql(schema, format)
+        return await exportSql(schema, format)
       case 'django':
         return generateDjango(schema)
       case 'json':
@@ -79,11 +82,26 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml' }: ExportDi
     if (open) setFormat(initialFormat)
   }
 
-  const { text, diagnostics } = useMemo(() => {
-    // Prefer the user's own DBML formatting when the DBML editor is authoritative.
-    if (format === 'dbml' && origin === 'dbml' && dbmlText !== null) return { text: dbmlText, diagnostics: [] as Diagnostic[] }
-    return renderExport(format, schema, layout)
-  }, [format, schema, layout, dbmlText, origin])
+  // Prefer the user's own DBML formatting when the DBML editor is authoritative.
+  const authored = format === 'dbml' && origin === 'dbml' && dbmlText !== null ? dbmlText : null
+  const [rendered, setRendered] = useState<{ text: string; diagnostics: Diagnostic[] }>({ text: '', diagnostics: [] })
+
+  useEffect(() => {
+    if (authored !== null) {
+      setRendered({ text: authored, diagnostics: [] })
+      return
+    }
+    // Stale-response guard: only the newest render may set state.
+    let live = true
+    void renderExport(format, schema, layout).then((r) => {
+      if (live) setRendered(r)
+    })
+    return () => {
+      live = false
+    }
+  }, [format, schema, layout, authored])
+
+  const { text, diagnostics } = rendered
 
   const meta = EXPORT_FORMATS.find((f) => f.id === format)!
   const extensions = useMemo(() => {

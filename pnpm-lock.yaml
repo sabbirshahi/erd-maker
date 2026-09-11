@@ -32,6 +32,9 @@ importers:
       '@dbml/core':
         specifier: ^10.1.1
         version: 10.1.1
+      '@dbml/parse':
+        specifier: 10.1.1
+        version: 10.1.1
       '@faker-js/faker':
         specifier: ^10.6.0
         version: 10.6.0

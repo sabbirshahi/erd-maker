@@ -53,7 +53,7 @@ export async function runImport(kind: ImportKind, text: string, dialect: ImportD
   try {
     if (kind === 'dbml') return parseDbml(text)
     if (kind === 'sql') {
-      const imported = importSql(text, dialect)
+      const imported = await importSql(text, dialect)
       if (!imported.dbml) return { diagnostics: imported.diagnostics }
       const parsed = parseDbml(imported.dbml)
       return { schema: parsed.schema, diagnostics: [...imported.diagnostics, ...parsed.diagnostics] }

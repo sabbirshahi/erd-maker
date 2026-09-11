@@ -25,6 +25,7 @@
     "@codemirror/state": "^6.7.4",
     "@codemirror/view": "^6.43.11",
     "@dbml/core": "^10.1.1",
+    "@dbml/parse": "10.1.1",
     "@faker-js/faker": "^10.6.0",
     "@xyflow/react": "^12.11.6",
     "clsx": "^2.1.1",

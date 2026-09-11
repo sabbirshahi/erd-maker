@@ -20,8 +20,8 @@ function parseOk(text: string): Schema {
   return r.schema!
 }
 
-function importOk(sql: string, dialect: Parameters<typeof importSql>[1]): Schema {
-  const r = importSql(sql, dialect)
+async function importOk(sql: string, dialect: Parameters<typeof importSql>[1]): Promise<Schema> {
+  const r = await importSql(sql, dialect)
   expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
   expect(r.schema).toBeDefined()
   expect(r.dbml).toBeDefined()
@@ -32,28 +32,28 @@ function importOk(sql: string, dialect: Parameters<typeof importSql>[1]): Schema
 const sqlView = (text: string): Schema => normalizeForSql(parseOk(text)).schema
 
 describe('importSql', () => {
-  it('imports sql/ecommerce.postgres.sql to the same Schema as ecommerce.dbml (ignoring ids)', () => {
-    const fromSql = importOk(ecommercePg, 'postgres')
+  it('imports sql/ecommerce.postgres.sql to the same Schema as ecommerce.dbml (ignoring ids)', async () => {
+    const fromSql = await importOk(ecommercePg, 'postgres')
     expect(canonical(fromSql)).toEqual(canonical(parseOk(ecommerce)))
   })
 
-  it('auto-detects the dialect and reports which one it used', () => {
-    const r = importSql(ecommercePg, 'auto')
+  it('auto-detects the dialect and reports which one it used', async () => {
+    const r = await importSql(ecommercePg, 'auto')
     expect(r.dialect).toBe('postgres')
     expect(r.schema).toBeDefined()
-    expect(importSql(blogMysql, 'auto').dialect).toBe('mysql')
+    expect((await importSql(blogMysql, 'auto')).dialect).toBe('mysql')
   })
 
-  it('returns canonical DBML that our parser accepts and our generator reproduces byte-for-byte', () => {
-    const r = importSql(ecommercePg, 'postgres')
+  it('returns canonical DBML that our parser accepts and our generator reproduces byte-for-byte', async () => {
+    const r = await importSql(ecommercePg, 'postgres')
     expect(r.dbml).toBe(generateDbml(r.schema!))
     const again = parseOk(r.dbml!)
     expect(generateDbml(again)).toBe(r.dbml)
     expect(r.dbml).not.toMatch(/Indexes \{/) // importer's capitalised block is normalised
   })
 
-  it('survives a pg_dump-style dump: sequences, ALTER TABLE ONLY, OWNER/GRANT, psql meta-commands', () => {
-    const fromSql = importOk(blogPgDump, 'auto')
+  it('survives a pg_dump-style dump: sequences, ALTER TABLE ONLY, OWNER/GRANT, psql meta-commands', async () => {
+    const fromSql = await importOk(blogPgDump, 'auto')
     const expected = sqlView(blog)
     expect(fromSql.tables.map((t) => t.name).sort()).toEqual(expected.tables.map((t) => t.name).sort())
     const c = canonical(fromSql)
@@ -76,8 +76,8 @@ describe('importSql', () => {
     expect(fromSql.tables.find((t) => t.name === 'users')!.note).toBe('Registered users')
   })
 
-  it('survives a mysqldump-style dump: conditional comments, ENGINE/CHARSET, LOCK/INSERT, inline ENUM', () => {
-    const fromSql = importOk(blogMysql, 'mysql')
+  it('survives a mysqldump-style dump: conditional comments, ENGINE/CHARSET, LOCK/INSERT, inline ENUM', async () => {
+    const fromSql = await importOk(blogMysql, 'mysql')
     const expected = sqlView(blog)
     expect(fromSql.tables.map((t) => t.name).sort()).toEqual(expected.tables.map((t) => t.name).sort())
     const posts = fromSql.tables.find((t) => t.name === 'posts')!
@@ -94,39 +94,39 @@ describe('importSql', () => {
     expect(fromSql.tables.find((t) => t.name === 'posts')!.columns.find((c) => c.name === 'status')!.default).toBe("'draft'")
   })
 
-  it('strips pg_dump casts from defaults', () => {
-    const r = importSql("CREATE TABLE t (\n  a varchar DEFAULT 'x'::character varying,\n  b int DEFAULT nextval('t_b_seq'::regclass),\n  c text[] DEFAULT '{}'::text[]\n);", 'postgres')
+  it('strips pg_dump casts from defaults', async () => {
+    const r = await importSql("CREATE TABLE t (\n  a varchar DEFAULT 'x'::character varying,\n  b int DEFAULT nextval('t_b_seq'::regclass),\n  c text[] DEFAULT '{}'::text[]\n);", 'postgres')
     const cols = Object.fromEntries(r.schema!.tables[0].columns.map((c) => [c.name, c.default]))
     expect(cols.a).toBe("'x'")
     expect(cols.c).toBe("'{}'")
     expect(String(cols.b)).toMatch(/nextval\('t_b_seq'\)/)
   })
 
-  it('rejects empty input and input without tables with a single error', () => {
-    const empty = importSql('   \n', 'postgres')
+  it('rejects empty input and input without tables with a single error', async () => {
+    const empty = await importSql('   \n', 'postgres')
     expect(empty.schema).toBeUndefined()
     expect(empty.diagnostics).toHaveLength(1)
     expect(empty.diagnostics[0]).toMatchObject({ severity: 'error', source: 'sql' })
 
-    const noTables = importSql('SET x = 1;\nCREATE EXTENSION foo;\n-- just noise\n', 'auto')
+    const noTables = await importSql('SET x = 1;\nCREATE EXTENSION foo;\n-- just noise\n', 'auto')
     expect(noTables.schema).toBeUndefined()
     expect(noTables.diagnostics[0].message).toMatch(/No CREATE TABLE/)
     expect(noTables.diagnostics[0].message).toMatch(/auto-detected/)
   })
 
-  it('maps syntax errors to diagnostics with 1-based line/col instead of throwing', () => {
-    const r = importSql('CREATE TABLE `x` (\n  id int,\n  bogus\n);', 'mysql')
+  it('maps syntax errors to diagnostics with 1-based line/col instead of throwing', async () => {
+    const r = await importSql('CREATE TABLE `x` (\n  id int,\n  bogus\n);', 'mysql')
     expect(r.schema).toBeUndefined()
     expect(r.diagnostics[0]).toMatchObject({ severity: 'error', source: 'sql', line: 4, col: 1 })
     expect(r.diagnostics[0].message).toMatch(/^MySQL: /)
 
-    const ms = importSql('CREATE TABLE [x] (\n  id int,\n  bogus\n);', 'mssql')
+    const ms = await importSql('CREATE TABLE [x] (\n  id int,\n  bogus\n);', 'mssql')
     expect(ms.diagnostics[0]).toMatchObject({ severity: 'error', line: 4 })
     expect(ms.dialect).toBe('mssql')
   })
 
-  it('reports importer crashes (no position) as a plain error', () => {
-    const r = importSql('CREATE TABLE x (\n  id int,\n  bogus\n);', 'postgres')
+  it('reports importer crashes (no position) as a plain error', async () => {
+    const r = await importSql('CREATE TABLE x (\n  id int,\n  bogus\n);', 'postgres')
     expect(r.schema).toBeUndefined()
     expect(r.diagnostics).toHaveLength(1)
     expect(r.diagnostics[0].line).toBeUndefined()
@@ -136,19 +136,19 @@ describe('importSql', () => {
 
 describe('exportSql: postgres / mysql', () => {
   for (const [name, text] of Object.entries(fixtures)) {
-    it(`${name}: postgres export re-imports to an equal Schema`, () => {
+    it(`${name}: postgres export re-imports to an equal Schema`, async () => {
       const schema = parseOk(text)
-      const { text: ddl, diagnostics } = exportSql(schema, 'postgres')
+      const { text: ddl, diagnostics } = await exportSql(schema, 'postgres')
       expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([])
       expect(ddl).toMatch(/CREATE TABLE/)
-      const back = importOk(ddl, 'postgres')
+      const back = await importOk(ddl, 'postgres')
       expect(canonical(back)).toEqual(canonical(normalizeForSql(schema).schema))
     })
   }
 
-  it('expands many-to-many refs into a join table and says so', () => {
+  it('expands many-to-many refs into a join table and says so', async () => {
     const schema = parseOk(blog)
-    const { text, diagnostics } = exportSql(schema, 'postgres')
+    const { text, diagnostics } = await exportSql(schema, 'postgres')
     expect(text).toMatch(/CREATE TABLE "posts_tags"/)
     expect(text).toMatch(/PRIMARY KEY \("posts_id", "tags_id"\)/)
     const info = diagnostics.find((d) => d.message.includes('posts <> tags'))
@@ -156,21 +156,21 @@ describe('exportSql: postgres / mysql', () => {
     expect(info?.refId).toBe(schema.refs.find((r) => r.kind === '<>')!.id)
   })
 
-  it('exports one-to-one as a FK on the from side and warns when that column is not unique', () => {
+  it('exports one-to-one as a FK on the from side and warns when that column is not unique', async () => {
     const ks = parseOk(kitchenSink)
-    const unique = exportSql(ks, 'postgres')
+    const unique = await exportSql(ks, 'postgres')
     expect(unique.text).toMatch(/ALTER TABLE "profiles" ADD FOREIGN KEY \("user_id"\) REFERENCES "users" \("id"\)/)
     expect(unique.diagnostics.filter((d) => d.message.includes('One-to-one'))).toEqual([])
 
     const profiles = ks.tables.find((t) => t.name === 'profiles')!
     profiles.columns.find((c) => c.name === 'user_id')!.unique = false
-    const warned = exportSql(ks, 'postgres')
+    const warned = await exportSql(ks, 'postgres')
     const w = warned.diagnostics.find((d) => d.message.includes('One-to-one'))
     expect(w).toMatchObject({ severity: 'warning', lossy: true, tableId: profiles.id })
   })
 
-  it('mysql export produces MySQL DDL and flags Postgres-only types', () => {
-    const { text, diagnostics } = exportSql(parseOk(kitchenSink), 'mysql')
+  it('mysql export produces MySQL DDL and flags Postgres-only types', async () => {
+    const { text, diagnostics } = await exportSql(parseOk(kitchenSink), 'mysql')
     expect(text).toMatch(/CREATE TABLE `users`/)
     expect(text).toMatch(/AUTO_INCREMENT/)
     expect(text).toMatch(/ENUM \('pending', 'paid', 'on hold', 'cancelled'\)/)
@@ -178,21 +178,21 @@ describe('exportSql: postgres / mysql', () => {
     expect(types.some((m) => m.includes('`timestamptz`'))).toBe(true)
     expect(types.some((m) => m.includes('`uuid`'))).toBe(true)
     expect(diagnostics.every((d) => d.severity !== 'error')).toBe(true)
-    expect(exportSql(parseOk(blog), 'mysql').diagnostics.filter((d) => d.message.includes('MySQL has no'))).toEqual([])
+    expect((await exportSql(parseOk(blog), 'mysql')).diagnostics.filter((d) => d.message.includes('MySQL has no'))).toEqual([])
   })
 
-  it('leaves diagram-only blocks and positions out of the DDL', () => {
-    const { text } = exportSql(parseOk(kitchenSink), 'postgres')
+  it('leaves diagram-only blocks and positions out of the DDL', async () => {
+    const { text } = await exportSql(parseOk(kitchenSink), 'postgres')
     expect(text).not.toMatch(/TableGroup|Project|release_notes|headercolor/i)
   })
 
-  it('returns empty text for an empty schema and never throws on broken input', () => {
-    expect(exportSql(emptySchema(), 'postgres')).toEqual({ text: '', diagnostics: [] })
-    expect(exportSql(emptySchema(), 'mysql').text).toBe('')
-    expect(exportSql(emptySchema(), 'sqlite').text).toMatch(/PRAGMA foreign_keys = ON/)
+  it('returns empty text for an empty schema and never throws on broken input', async () => {
+    expect(await exportSql(emptySchema(), 'postgres')).toEqual({ text: '', diagnostics: [] })
+    expect((await exportSql(emptySchema(), 'mysql')).text).toBe('')
+    expect((await exportSql(emptySchema(), 'sqlite')).text).toMatch(/PRAGMA foreign_keys = ON/)
     const s = emptySchema()
     s.tables.push(newTable({ name: 't', columns: [] })) // DBML rejects an empty table
-    const r = exportSql(s, 'postgres')
+    const r = await exportSql(s, 'postgres')
     expect(r.text).toBe('')
     expect(r.diagnostics[0]).toMatchObject({ severity: 'error', source: 'sql' })
     expect(r.diagnostics[0].line).toBeUndefined()
@@ -201,9 +201,9 @@ describe('exportSql: postgres / mysql', () => {
 
 describe('exportSql: sqlite', () => {
   for (const [name, text] of Object.entries(fixtures)) {
-    it(`${name}: contains no serial / CREATE TYPE / ALTER TABLE and executes in SQLite`, () => {
+    it(`${name}: contains no serial / CREATE TYPE / ALTER TABLE and executes in SQLite`, async () => {
       const schema = parseOk(text)
-      const { text: ddl, diagnostics } = exportSql(schema, 'sqlite')
+      const { text: ddl, diagnostics } = await exportSql(schema, 'sqlite')
       expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([])
       expect(ddl).not.toMatch(/serial/i)
       expect(ddl).not.toMatch(/CREATE TYPE/i)
@@ -227,8 +227,8 @@ describe('exportSql: sqlite', () => {
     })
   }
 
-  it('rewrites types, inlines enums as CHECK constraints and flattens schemas', () => {
-    const { text, diagnostics } = exportSql(parseOk(kitchenSink), 'sqlite')
+  it('rewrites types, inlines enums as CHECK constraints and flattens schemas', async () => {
+    const { text, diagnostics } = await exportSql(parseOk(kitchenSink), 'sqlite')
     expect(text).toMatch(/"id" INTEGER PRIMARY KEY AUTOINCREMENT/)
     expect(text).toMatch(/"created_at" TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP/)
     expect(text).toMatch(/"is_active" INTEGER NOT NULL DEFAULT 1/)
@@ -249,7 +249,7 @@ describe('exportSql: sqlite', () => {
     expect(flat).toMatchObject({ severity: 'info', lossy: true })
   })
 
-  it('warns when increment cannot be honoured', () => {
+  it('warns when increment cannot be honoured', async () => {
     const s = emptySchema()
     s.tables.push(
       newTable({
@@ -257,7 +257,7 @@ describe('exportSql: sqlite', () => {
         columns: [newColumn({ name: 'id', type: 'uuid', pk: true, increment: true }), newColumn({ name: 'n', type: 'int', increment: true })],
       }),
     )
-    const { text, diagnostics } = exportSql(s, 'sqlite')
+    const { text, diagnostics } = await exportSql(s, 'sqlite')
     expect(text).toMatch(/"id" INTEGER PRIMARY KEY AUTOINCREMENT/)
     expect(text).toMatch(/"n" INTEGER\b/)
     expect(diagnostics.map((d) => d.message)).toEqual([expect.stringContaining('requires INTEGER'), expect.stringContaining('`increment` was dropped')])

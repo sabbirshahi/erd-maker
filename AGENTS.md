@@ -24,9 +24,9 @@ Path alias: `@/` → `src/`. No semicolons, single quotes (see `.prettierrc`).
 - `src/core/schema.ts` is the canonical IR. **Do not change existing field names/types.** Adding optional fields is OK — announce it in your commit message.
 - `src/store/schemaStore.ts` is the only way to change the schema (`commit` / `update`). Regenerate your view's text only when `origin !== you`. Never write into a focused text editor (`focus`).
 - Stub modules define the function signatures the other workers depend on. **Keep the signatures**, replace the bodies:
-  - `src/core/dbml/index.ts` — `parseDbml`, `generateDbml`
-  - `src/core/reconcile.ts` — `reconcile`
-  - `src/core/sql/index.ts` — `importSql`, `exportSql`
+  - `src/core/dbml/index.ts` — `parseDbml`, `generateDbml` (synchronous; built on `@dbml/parse`, never import `@dbml/core` here)
+  - `src/core/reconcile.ts` — `reconcile(prev, next, { preserveDjango? })`
+  - `src/core/sql/index.ts` — `importSql`, `exportSql` — **async** (`Promise<...>`): they `import('@dbml/core')` lazily so the 15 MB SQL engine stays out of the DBML editing path. `loadSqlEngine()` warms it up. Nothing outside `src/core/sql` may import `@dbml/core` (guarded by `tests/unit/dbml.bundle.test.ts`).
   - `src/core/django/index.ts` — `generateDjango`, `initDjangoParser`, `parseDjango`
   - `src/core/fake/index.ts` — `generateFakeData`
 - Diagnostics go through `setDiagnostics(source, [...])`; use `diag()` from schema.ts. Lossy mappings set `lossy: true`.

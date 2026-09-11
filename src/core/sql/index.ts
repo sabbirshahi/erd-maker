@@ -4,8 +4,10 @@
  *    validates the result through our own DBML parser so callers get canonical DBML (+ the Schema).
  *  - `exportSql(schema, dialect)`: postgres/mysql via `ModelExporter`, sqlite via our own generator
  *    (SQLite cannot add foreign keys after the fact). Never throws; diagnostics instead.
+ *
+ * Both are async: @dbml/core (15 MB of ANTLR SQL grammars) is loaded with a dynamic `import()` on
+ * first use, so the DBML editing path (which only needs @dbml/parse) never pays for it.
  */
-import { CompilerError, importer, ModelExporter, Parser } from '@dbml/core'
 import type { Diagnostic, Schema } from '../schema'
 import { diag } from '../schema'
 import { generateDbml, parseDbml } from '../dbml'
@@ -13,6 +15,15 @@ import { compilerDiagnostics } from '../dbml/parse'
 import { cleanSql, detectDialect } from './clean'
 import { normalizeForSql } from './normalize'
 import { generateSqlite } from './sqlite'
+
+type DbmlCore = typeof import('@dbml/core')
+let corePromise: Promise<DbmlCore> | undefined
+
+/** Load @dbml/core once (dynamic import keeps it out of the DBML editor's chunk graph). */
+export function loadSqlEngine(): Promise<DbmlCore> {
+  corePromise ??= import('@dbml/core')
+  return corePromise
+}
 
 export type SqlImportDialect = 'postgres' | 'mysql' | 'mssql'
 export type SqlExportDialect = 'postgres' | 'mysql' | 'sqlite'
@@ -46,9 +57,9 @@ interface SqlDiag {
 /** Map an importer failure to diagnostics. ANTLR reports 0-based columns; we expose 1-based. */
 function importErrorDiagnostics(err: unknown, dialect: SqlImportDialect): Diagnostic[] {
   const label = SQL_DIALECT_LABELS[dialect]
-  const diags = err instanceof CompilerError ? (err.diags as unknown as SqlDiag[]) : undefined
-  if (diags && diags.length > 0) {
-    return diags.map((d) => {
+  const diags = (err as { diags?: unknown } | null)?.diags
+  if (Array.isArray(diags) && diags.length > 0) {
+    return (diags as SqlDiag[]).map((d) => {
       const start = d.location?.start
       const end = d.location?.end
       const hasPos = typeof start?.line === 'number'
@@ -68,7 +79,7 @@ function importErrorDiagnostics(err: unknown, dialect: SqlImportDialect): Diagno
 }
 
 /** SQL DDL -> canonical DBML text (+ Schema). Returns diagnostics instead of throwing. */
-export function importSql(sql: string, dialect: SqlImportDialect | 'auto'): SqlImportResult {
+export async function importSql(sql: string, dialect: SqlImportDialect | 'auto'): Promise<SqlImportResult> {
   const resolved: SqlImportDialect = dialect === 'auto' ? detectDialect(sql) : dialect
   if (sql.trim().length === 0) {
     return {
@@ -79,6 +90,7 @@ export function importSql(sql: string, dialect: SqlImportDialect | 'auto'): SqlI
   const cleaned = cleanSql(sql, resolved)
   let rawDbml: string
   try {
+    const { importer } = await loadSqlEngine()
     rawDbml = importer.import(cleaned, resolved)
   } catch (err) {
     return { dialect: resolved, diagnostics: importErrorDiagnostics(err, resolved) }
@@ -143,8 +155,13 @@ function mysqlTypeDiagnostics(schema: Schema): Diagnostic[] {
   return out
 }
 
+export interface SqlExportResult {
+  text: string
+  diagnostics: Diagnostic[]
+}
+
 /** Schema -> SQL DDL. sqlite is generated directly; postgres/mysql go through @dbml/core's exporter. */
-export function exportSql(schema: Schema, dialect: SqlExportDialect): { text: string; diagnostics: Diagnostic[] } {
+export async function exportSql(schema: Schema, dialect: SqlExportDialect): Promise<SqlExportResult> {
   const normalized = normalizeForSql(schema)
   const diagnostics = [...normalized.diagnostics]
   if (dialect === 'sqlite') {
@@ -157,6 +174,7 @@ export function exportSql(schema: Schema, dialect: SqlExportDialect): { text: st
   const dbml = generateDbml(forExport)
   if (dbml.trim().length === 0) return { text: '', diagnostics }
   try {
+    const { ModelExporter, Parser } = await loadSqlEngine()
     const db = new Parser().parse(dbml, 'dbmlv2')
     const text = ModelExporter.export(db, dialect, false)
     return { text: text.endsWith('\n') ? text : `${text}\n`, diagnostics }

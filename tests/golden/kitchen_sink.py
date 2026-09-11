@@ -30,6 +30,19 @@ class User(models.Model):
         db_table = 'users'
 
 
+class Session(models.Model):
+
+    token = models.UUIDField(primary_key=True)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, db_column='user_id')
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'sessions'
+        indexes = [
+            models.Index(fields=['user', 'expires_at'], name='sessions_user_expiry'),
+        ]
+
+
 class Profile(models.Model):
 
     user = models.OneToOneField('User', on_delete=models.CASCADE, db_column='user_id', unique=True)
@@ -88,16 +101,3 @@ class OrderLineNote(models.Model):
 
     class Meta:
         db_table = 'order line notes'
-
-
-class Session(models.Model):
-
-    token = models.UUIDField(primary_key=True)
-    user = models.ForeignKey('User', on_delete=models.CASCADE, db_column='user_id')
-    expires_at = models.DateTimeField()
-
-    class Meta:
-        db_table = 'sessions'
-        indexes = [
-            models.Index(fields=['user', 'expires_at'], name='sessions_user_expiry'),
-        ]

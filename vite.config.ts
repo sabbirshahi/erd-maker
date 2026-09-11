@@ -11,16 +11,22 @@ export default defineConfig({
   optimizeDeps: { exclude: ['web-tree-sitter'] },
   build: {
     target: 'es2022',
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id: string) {
-          if (id.includes('node_modules/@dbml/')) return 'dbml'
-          if (id.includes('node_modules/@xyflow/')) return 'xyflow'
-          if (id.includes('node_modules/@codemirror/') || id.includes('node_modules/codemirror/')) return 'codemirror'
-          if (id.includes('node_modules/@faker-js/')) return 'faker'
-          if (id.includes('node_modules/web-tree-sitter/')) return 'tree-sitter'
-          if (id.includes('node_modules/elkjs/')) return 'elk'
-          return undefined
+        // Vite 8 (Rolldown): `manualChunks` is a compat shim that ignored our @dbml/parse group and
+        // folded it into the @dbml/core chunk. `advancedChunks` is the native API. The 15 MB SQL
+        // engine (@dbml/core) must stay apart from the small DBML compiler (@dbml/parse): only
+        // src/core/sql loads @dbml/core, via dynamic import().
+        advancedChunks: {
+          groups: [
+            { name: 'dbml-core', test: /node_modules[\\/]@dbml[\\/]core[\\/]/ },
+            { name: 'dbml-parse', test: /node_modules[\\/]@dbml[\\/]parse[\\/]/ },
+            { name: 'xyflow', test: /node_modules[\\/]@xyflow[\\/]/ },
+            { name: 'codemirror', test: /node_modules[\\/](@codemirror|codemirror)[\\/]/ },
+            { name: 'faker', test: /node_modules[\\/]@faker-js[\\/]/ },
+            { name: 'tree-sitter', test: /node_modules[\\/]web-tree-sitter[\\/]/ },
+            { name: 'elk', test: /node_modules[\\/]elkjs[\\/]/ },
+          ],
         },
       },
     },
