@@ -4,7 +4,7 @@
  * position survive regenerations.
  */
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
-import { EditorState, Compartment, Annotation, type Extension } from '@codemirror/state'
+import { EditorState, EditorSelection, ChangeSet, Compartment, Annotation, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { indentWithTab } from '@codemirror/commands'
 import { basicSetup } from 'codemirror'
@@ -234,15 +234,33 @@ export function CodeMirrorEditor({
   )
 }
 
-function applyValue(view: EditorView | null, text: string): void {
+/**
+ * Replace the document with `text` as a minimal edit, explicitly carrying the caret and the
+ * scroll position across the change. Exported for tests.
+ *
+ * - The selection is mapped through the ChangeSet (so a cursor after an inserted block moves with
+ *   its text, and a cursor before it stays put) and clamped to the new document length.
+ * - The scroll offsets are captured before and restored after the dispatch, and CodeMirror is told
+ *   not to scroll the (mapped) selection into view.
+ */
+export function applyValue(view: EditorView | null, text: string): void {
   if (!view) return
   const current = view.state.doc.toString()
   const change = minimalChange(current, text)
   if (!change) return
-  const scrollTop = view.scrollDOM.scrollTop
-  const scrollLeft = view.scrollDOM.scrollLeft
+  const changes = ChangeSet.of(change, current.length)
+  const newLength = changes.newLength
+  const clamp = (pos: number) => Math.min(Math.max(0, pos), newLength)
+  const mapped = view.state.selection.map(changes)
+  const selection = EditorSelection.create(
+    mapped.ranges.map((r) => EditorSelection.range(clamp(r.anchor), clamp(r.head))),
+    mapped.mainIndex,
+  )
+  const { scrollTop, scrollLeft } = view.scrollDOM
   view.dispatch({
-    changes: change,
+    changes,
+    selection,
+    scrollIntoView: false,
     // Keep the transaction out of the undo history: it mirrors an external edit.
     annotations: [externalChange.of(true)],
   })

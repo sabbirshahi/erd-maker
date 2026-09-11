@@ -215,4 +215,122 @@ describe('createTextSync', () => {
     canvasEdit((s) => s.tables.push(newTable({ name: 'late' })))
     expect(sync.text).toBe('\n')
   })
+
+  describe('no echo loop across views', () => {
+    /** Two panes on one store, each with a counted generator, mimicking DbmlEditor + DjangoEditor. */
+    function twoPanes(initial?: Partial<State>) {
+      const made = makeStore(initial)
+      const genDbml = vi.fn((s: Schema) => 'dbml:' + generate(s))
+      const genDjango = vi.fn((s: Schema) => 'py:' + generate(s))
+      const dbml = createTextSync(made.store, { view: 'dbml', parse: parseOk, generate: genDbml, reconcile: passthrough })
+      const django = createTextSync(made.store, { view: 'django', parse: parseOk, generate: genDjango, reconcile: passthrough })
+      const dbmlUpdates = vi.fn()
+      const djangoUpdates = vi.fn()
+      dbml.onUpdate(dbmlUpdates)
+      django.onUpdate(djangoUpdates)
+      // Both generators ran once for the initial text; count only what happens after this point.
+      genDbml.mockClear()
+      genDjango.mockClear()
+      return { ...made, dbml, django, genDbml, genDjango, dbmlUpdates, djangoUpdates }
+    }
+
+    it("a 'canvas' commit regenerates each editor exactly once", () => {
+      const t = twoPanes()
+      t.canvasEdit((s) => s.tables.push(newTable({ name: 'users' })))
+      expect(t.genDbml).toHaveBeenCalledTimes(1)
+      expect(t.genDjango).toHaveBeenCalledTimes(1)
+      expect(t.dbmlUpdates).toHaveBeenCalledTimes(1)
+      expect(t.djangoUpdates).toHaveBeenCalledTimes(1)
+      expect(t.dbml.text).toBe('dbml:Table users {}\n')
+      expect(t.django.text).toBe('py:Table users {}\n')
+      // Nothing echoes back into the store: the panes only commit on their own parses.
+      expect(t.store.getState().commit).not.toHaveBeenCalled()
+      t.dbml.dispose()
+      t.django.dispose()
+    })
+
+    it("a 'dbml' commit leaves the DBML editor's text alone but regenerates Django once", async () => {
+      const t = twoPanes()
+      t.dbml.onChange('Table typed {}')
+      await vi.advanceTimersByTimeAsync(300)
+      expect(t.store.getState().commit).toHaveBeenCalledTimes(1)
+      expect(t.store.getState().origin).toBe('dbml')
+      expect(t.genDbml).not.toHaveBeenCalled()
+      expect(t.dbml.text).toBe('Table typed {}')
+      expect(t.genDjango).toHaveBeenCalledTimes(1)
+      expect(t.django.text).toBe('py:Table typed {}\n')
+      expect(t.djangoUpdates).toHaveBeenCalledTimes(1)
+      // The Django regeneration must not trigger a Django commit (which would in turn rewrite DBML).
+      expect(t.store.getState().commit).toHaveBeenCalledTimes(1)
+      t.dbml.dispose()
+      t.django.dispose()
+    })
+
+    it("a 'django' commit regenerates DBML once and leaves the Django editor's text alone", async () => {
+      const t = twoPanes()
+      t.django.onChange('class Post(models.Model): pass  # Table posts')
+      await vi.advanceTimersByTimeAsync(300)
+      expect(t.store.getState().commit).toHaveBeenCalledTimes(1)
+      expect(t.store.getState().origin).toBe('django')
+      expect(t.genDjango).not.toHaveBeenCalled()
+      expect(t.django.text).toBe('class Post(models.Model): pass  # Table posts')
+      expect(t.genDbml).toHaveBeenCalledTimes(1)
+      expect(t.dbml.text).toBe('dbml:Table posts {}\n')
+      expect(t.dbmlUpdates).toHaveBeenCalledTimes(1)
+      expect(t.store.getState().commit).toHaveBeenCalledTimes(1)
+      t.dbml.dispose()
+      t.django.dispose()
+    })
+
+    it('a focused + dirty editor is never written into, whatever the origin', async () => {
+      const t = twoPanes()
+      t.dbml.onFocus()
+      t.dbml.onChange('Table half-typed {')
+      const typed = t.dbml.text
+      // External changes from both other origins while the user is mid-edit. The Django commit is
+      // issued directly rather than via django.onChange(): typing requires focus in the real UI, so
+      // an unfocused-but-dirty pane is not a reachable state, and driving one makes this test about
+      // debounce tie-breaks instead of the invariant in its name.
+      t.canvasEdit((s) => s.tables.push(newTable({ name: 'from_canvas' })))
+      const fromDjango = emptySchema()
+      fromDjango.tables.push(newTable({ name: 'from_django' }))
+      t.store.getState().commit('django', fromDjango, { djangoText: '# Table from_django' })
+      await vi.advanceTimersByTimeAsync(300)
+      const commitOrigins = (t.store.getState().commit as unknown as { mock: { calls: Origin[][] } }).mock.calls.map((c) => c[0])
+      expect(commitOrigins).toContain('django')
+      expect(t.dbml.text).toBe(typed)
+      // No regeneration ran for the focused pane, so nothing external was written into it. It may
+      // still notify once: its own 300ms flush commits the typed text and clears `dirty`, which is
+      // a self-update, not an external write — the text above is still exactly what was typed.
+      expect(t.genDbml).not.toHaveBeenCalled()
+      // The unfocused Django pane regenerates for each foreign commit it sees: the canvas edit, then
+      // the DBML pane's 300ms flush. Its own commit in between does not regenerate it (origin match).
+      expect(t.genDjango).toHaveBeenCalledTimes(2)
+      // Blur: the pending parse fails (unbalanced brace is parsed as no tables -> still a commit here
+      // because parseOk is lenient), so use a parse that reports an error instead for the deferred path.
+      t.dbml.dispose()
+      t.django.dispose()
+    })
+
+    it('after blur, the deferred external text is applied exactly once', async () => {
+      const made = makeStore()
+      const genDbml = vi.fn(generate)
+      const dbml = createTextSync(made.store, { view: 'dbml', parse: () => parseErr(), generate: genDbml, reconcile: passthrough })
+      const updates = vi.fn()
+      dbml.onUpdate(updates)
+      genDbml.mockClear()
+      dbml.onFocus()
+      dbml.onChange('Table broken {')
+      made.canvasEdit((s) => s.tables.push(newTable({ name: 'a' })))
+      made.canvasEdit((s) => s.tables.push(newTable({ name: 'b' })))
+      expect(genDbml).not.toHaveBeenCalled()
+      expect(dbml.text).toBe('Table broken {')
+      await dbml.onBlur()
+      expect(genDbml).toHaveBeenCalledTimes(1)
+      expect(dbml.text).toBe('Table a {}\nTable b {}\n')
+      // One update for the parse result (diagnostics) and one for the regenerated text.
+      expect(updates).toHaveBeenCalledTimes(2)
+      dbml.dispose()
+    })
+  })
 })

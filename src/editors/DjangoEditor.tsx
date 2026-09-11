@@ -3,7 +3,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { python } from '@codemirror/lang-python'
-import { generateDjango, initDjangoParser, parseDjango } from '@/core/django'
+import { generateDjango, initDjangoParser, parseDjango, type GenerateResult } from '@/core/django'
 import type { Schema } from '@/core/schema'
 import { reconcile } from '@/core/reconcile'
 import { useSchemaStore } from '@/store'
@@ -16,23 +16,18 @@ export interface DjangoEditorProps {
   className?: string
 }
 
-/** Generate models.py and publish the generator's (typemap) diagnostics. */
-function generateWithDiagnostics(schema: Schema): string {
-  const result = generateDjango(schema)
-  const state = useSchemaStore.getState()
-  // Avoid redundant store writes when nothing changed.
-  const prev = state.diagnostics.typemap
-  const same =
-    prev.length === result.diagnostics.length &&
-    prev.every((d, i) => d.message === result.diagnostics[i].message && d.severity === result.diagnostics[i].severity)
-  if (!same) state.setDiagnostics('typemap', result.diagnostics)
-  return result.text
-}
-
 export function DjangoEditor({ className }: DjangoEditorProps) {
   const handle = useRef<CodeMirrorEditorHandle>(null)
   const [readOnly, setReadOnly] = useState(false)
   const initStarted = useRef(false)
+
+  // generateDjango is pure; memoise the last result per schema object so the text generator and
+  // the diagnostics effect below share one run instead of generating twice per commit.
+  const genCache = useRef<{ schema: Schema; result: GenerateResult } | null>(null)
+  const generate = useCallback((schema: Schema): GenerateResult => {
+    if (genCache.current?.schema !== schema) genCache.current = { schema, result: generateDjango(schema) }
+    return genCache.current.result
+  }, [])
 
   const ensureParser = useCallback(async () => {
     if (initStarted.current) return
@@ -50,16 +45,23 @@ export function DjangoEditor({ className }: DjangoEditorProps) {
       await ensureParser()
       return parseDjango(text)
     },
-    generate: generateWithDiagnostics,
+    generate: (schema) => generate(schema).text,
     reconcile,
   })
   const extensions = useMemo(() => [python()], [])
   useGotoLine('django', handle)
 
-  // Publish typemap diagnostics for the initial schema too.
+  // Side effect kept out of generate(): publish the generator's (typemap) diagnostics once per commit.
+  const version = useSchemaStore((s) => s.version)
+  const origin = useSchemaStore((s) => s.origin)
   useEffect(() => {
-    generateWithDiagnostics(useSchemaStore.getState().schema)
-  }, [])
+    const state = useSchemaStore.getState()
+    const next = generate(state.schema).diagnostics
+    const prev = state.diagnostics.typemap
+    const same =
+      prev.length === next.length && prev.every((d, i) => d.message === next[i].message && d.severity === next[i].severity)
+    if (!same) state.setDiagnostics('typemap', next)
+  }, [version, origin, generate])
 
   useEffect(() => () => void sync.flush(), [sync])
 
