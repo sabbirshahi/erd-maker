@@ -109,6 +109,25 @@ test.describe('app shell', () => {
     expect(await isDark()).toBe(!before)
   })
 
+  test('Export PNG downloads a rendered image of the canvas', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('btn-examples').click()
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node')).toHaveCount(4)
+    await page.getByTestId('btn-export').click()
+    const download = page.waitForEvent('download')
+    await page.getByTestId('menu-export-png').click()
+    const file = await download
+    expect(file.suggestedFilename()).toBe('erd.png')
+    const path = await file.path()
+    const { readFileSync } = await import('node:fs')
+    const bytes = readFileSync(path)
+    // PNG signature + a non-trivial payload (an empty/blank export would be tiny).
+    expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    expect(bytes.length).toBeGreaterThan(5_000)
+    await expect(toastWith(page, 'Exported PNG')).toBeVisible()
+  })
+
   test('Export menu offers PNG/JSON/DBML and undo reverts a load', async ({ page }) => {
     await page.goto(URL)
     await page.getByTestId('btn-export').click()

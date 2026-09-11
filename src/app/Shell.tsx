@@ -14,7 +14,6 @@ import { shareCurrent } from './share'
 import { useTheme } from './theme'
 import { toast } from './toast'
 import { Button, ErrorBoundary, IconButton, Kbd, Menu, Tabs } from './ui'
-import { generateDbml } from '@/core/dbml'
 
 type RightTab = TextView | 'demo'
 
@@ -139,9 +138,11 @@ export function Shell() {
     downloadText(JSON.stringify({ v: 1, schema: s.schema, layout: s.layout }, null, 2), 'erd.json', 'application/json')
     toast('Downloaded erd.json')
   }
-  const exportDbmlFile = () => {
+  const exportDbmlFile = async () => {
     const s = useSchemaStore.getState()
-    downloadText(s.dbmlText ?? generateDbml(s.schema), 'schema.dbml', 'text/plain')
+    // Dynamic import keeps the (large) @dbml/core chunk out of the shell's boot path.
+    const text = s.dbmlText ?? (await import('@/core/dbml')).generateDbml(s.schema)
+    downloadText(text, 'schema.dbml', 'text/plain')
     toast('Downloaded schema.dbml')
   }
   const fileInput = useRef<HTMLInputElement>(null)
@@ -201,7 +202,7 @@ export function Shell() {
           )}
           items={[
             { id: 'export-dialog', label: 'DBML / SQL / models.py…', onSelect: () => setExportOpen(true) },
-            { id: 'export-dbml', label: 'Download schema.dbml', onSelect: exportDbmlFile },
+            { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
             { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
             { id: 'export-png', label: 'Export PNG', onSelect: () => void exportCanvasPng() },
           ]}
