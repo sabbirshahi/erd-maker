@@ -6,6 +6,9 @@ async function tableNames(page: Page): Promise<string[]> {
   return page.evaluate(() => window.__erd!.store.getState().schema.tables.map((t) => t.name))
 }
 
+/** Toasts stack (e.g. "Loaded example" + "Copied"), so match the one we care about. */
+const toastWith = (page: Page, text: string) => page.getByTestId('toast').filter({ hasText: text })
+
 test.describe('app shell', () => {
   test('fresh profile shows the empty state; Start blank hides it', async ({ page }) => {
     await page.goto(URL)
@@ -50,7 +53,7 @@ test.describe('app shell', () => {
     await expect.poll(() => tableNames(page)).toContain('students')
 
     await page.getByTestId('btn-share').click()
-    await expect(page.getByTestId('toast')).toContainText('Share link copied')
+    await expect(toastWith(page, 'Share link copied')).toBeVisible()
     const url = await page.evaluate(() => navigator.clipboard.readText())
     expect(url).toContain('#d=')
 
@@ -65,11 +68,13 @@ test.describe('app shell', () => {
 
   test('Problems panel shows a count badge and rows', async ({ page }) => {
     await page.goto(URL)
+    // Use the 'sql' bucket: the editors/canvas own 'dbml' / 'django' / 'typemap' / 'canvas' and
+    // rewrite them on every schema change, which would wipe injected test diagnostics.
     await page.evaluate(() => {
       const s = window.__erd!.store.getState()
-      s.setDiagnostics('typemap', [
-        { id: 'e2e-1', severity: 'warning', source: 'typemap', message: 'e2e warning', lossy: true },
-        { id: 'e2e-2', severity: 'error', source: 'dbml', message: 'e2e error', line: 1 },
+      s.setDiagnostics('sql', [
+        { id: 'e2e-1', severity: 'warning', source: 'sql', message: 'e2e warning', lossy: true },
+        { id: 'e2e-2', severity: 'error', source: 'sql', message: 'e2e error', line: 1 },
       ])
     })
     await expect(page.getByTestId('problems-badge')).toHaveText('2')
@@ -88,7 +93,7 @@ test.describe('app shell', () => {
     const copy = page.getByTestId('copy-dbml').first()
     await expect(copy).toBeVisible()
     await copy.click()
-    await expect(page.getByTestId('toast')).toContainText('Copied DBML')
+    await expect(toastWith(page, 'Copied DBML')).toBeVisible()
     const text = await page.evaluate(() => navigator.clipboard.readText())
     expect(text).toContain('Table users')
   })
