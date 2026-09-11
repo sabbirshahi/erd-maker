@@ -196,7 +196,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
         ? 'Failed'
         : phase === 'ready'
           ? build
-            ? `Ready — ${build.appLabel}, ${build.tables.length} tables, ${build.rows} rows`
+            ? `Ready — ${build.appLabel}, ${build.tables.length} tables, ${build.rows} rows, ${build.checks.length === 0 ? 'checks OK' : `${build.checks.length} check issue${build.checks.length === 1 ? '' : 's'}`}`
             : 'Ready'
           : progress
             ? `${STAGE_LABEL[progress.stage]}: ${progress.message}`
@@ -250,6 +250,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
         )}
         <span
           data-testid="demo-status"
+          data-checks={build ? build.checks.length : undefined}
           className={clsx(
             'ml-auto truncate text-xs',
             phase === 'ready'
@@ -283,6 +284,33 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
             {progress ? `${STAGE_LABEL[progress.stage]} — ${progress.message}` : 'Starting…'}
           </div>
         </div>
+      )}
+
+      {build && build.checks.length > 0 && (
+        <ul
+          data-testid="demo-checks"
+          className="max-h-32 shrink-0 overflow-auto border-b border-zinc-200 px-3 py-1.5 text-xs dark:border-zinc-800"
+        >
+          {build.checks.map((c, i) => {
+            const isError = c.level === 'ERROR' || c.level === 'CRITICAL'
+            return (
+              <li
+                key={`${c.id}-${i}`}
+                data-level={c.level}
+                className={clsx(
+                  'flex gap-2 py-0.5',
+                  isError ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-400',
+                )}
+              >
+                <span className="shrink-0 font-mono">{c.id}</span>
+                <span className="min-w-0 flex-1">
+                  {c.obj ? <span className="font-mono">{c.obj}: </span> : null}
+                  {c.msg}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
       )}
 
       {schemaChanged && (

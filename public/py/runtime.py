@@ -19,6 +19,7 @@ import traceback
 import uuid
 
 from django.apps import apps
+from django.core import checks as django_checks
 from django.db import connection
 from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models import Avg, Count, F, Max, Min, Prefetch, Q, Sum
@@ -184,6 +185,39 @@ def _fk_violations():
         return len(cur.fetchall())
 
 
+def _run_checks(label):
+    """Django system checks for the demo app (acceptance criterion 5). Silenced messages dropped."""
+    try:
+        app_config = apps.get_app_config(label)
+        messages = django_checks.run_checks(app_configs=[app_config], include_deployment_checks=False)
+    except Exception as exc:  # checks themselves must never break a build
+        return [{'id': 'demo.E000', 'level': 'ERROR', 'msg': 'System checks could not run: %r' % (exc,), 'obj': None}]
+    out = []
+    for m in messages:
+        if m.is_silenced():
+            continue
+        obj = m.obj
+        if obj is not None:
+            try:
+                obj = '%s.%s' % (obj._meta.label, obj.name) if hasattr(obj, 'name') and hasattr(obj, '_meta') else str(obj)
+            except Exception:
+                obj = repr(obj)
+        out.append({
+            'id': m.id,
+            'level': _level_name(m.level),
+            'msg': m.msg + ((' ' + m.hint) if m.hint else ''),
+            'obj': obj,
+        })
+    return out
+
+
+def _level_name(level):
+    for name in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+        if getattr(django_checks, name, None) == level:
+            return name
+    return str(level)
+
+
 def _create_and_seed(label, table_order, dataset):
     _fresh_connection()
     models = _ordered_models(label, table_order)
@@ -223,6 +257,8 @@ def build(models_py, table_order, dataset):
         _last_build = (table_order, dataset)
         models, rows = _create_and_seed(label, table_order, dataset)
         violations = _fk_violations()
+        _report('tables', 100, 'Running Django system checks')
+        check_messages = _run_checks(label)
         _report('ready', 100, 'Ready')
         return _dumps({
             'ok': True,
@@ -232,6 +268,7 @@ def build(models_py, table_order, dataset):
             'models': [m.__name__ for m in models],
             'rows': rows,
             'fkViolations': violations,
+            'checks': check_messages,
             'ms': int((time.time() - started) * 1000),
         })
     except Exception:
@@ -260,6 +297,7 @@ def reset(dataset=None):
             'models': [m.__name__ for m in models],
             'rows': rows,
             'fkViolations': _fk_violations(),
+            'checks': _run_checks(_app_label),
             'ms': int((time.time() - started) * 1000),
         })
     except Exception:

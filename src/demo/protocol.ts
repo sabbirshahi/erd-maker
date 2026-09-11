@@ -51,6 +51,14 @@ export interface QueryResult {
   ms?: number
 }
 
+/** One Django system-check message (django.core.checks), JSON-safe. */
+export interface CheckMessage {
+  id: string
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL' | string
+  msg: string
+  obj: string | null
+}
+
 export interface BuildResult {
   appLabel: string
   version: number
@@ -58,6 +66,8 @@ export interface BuildResult {
   models: string[]
   rows: number
   fkViolations: number
+  /** Non-silenced `run_checks()` messages for the demo app; empty when the models are clean. */
+  checks: CheckMessage[]
   ms: number
 }
 

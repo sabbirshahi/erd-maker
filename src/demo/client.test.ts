@@ -102,7 +102,12 @@ describe('DemoClient', () => {
 
   it('serialises build/reset payloads and omits dataset when absent', async () => {
     const w = fakeWorker((req, emit) =>
-      emit({ id: req.id, type: 'result', ok: true, result: { appLabel: 'demo_v1', rows: 0 } }),
+      emit({
+        id: req.id,
+        type: 'result',
+        ok: true,
+        result: { appLabel: 'demo_v1', rows: 0, checks: [] },
+      }),
     )
     const c = new DemoClient(() => w)
     await c.build({ modelsPy: 'x', tableOrder: ['a'], dataset: { tables: [], joins: [], seed: 1 } })

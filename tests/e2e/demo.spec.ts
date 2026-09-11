@@ -63,6 +63,13 @@ function firstCell(page: Page) {
   return page.locator('[data-testid="demo-result"] tbody tr').first().locator('td').nth(1)
 }
 
+/** Acceptance criterion 5: Django system checks ran and reported nothing for the current build. */
+async function expectChecksClean(page: Page): Promise<void> {
+  await expect(page.getByTestId('demo-status')).toHaveAttribute('data-checks', '0')
+  await expect(page.getByTestId('demo-status')).toContainText('checks OK')
+  await expect(page.getByTestId('demo-checks')).toHaveCount(0)
+}
+
 async function addColumn(page: Page, name: string): Promise<void> {
   await page.evaluate((colName) => {
     const store = (window as ErdWindow).__erd!.store
@@ -104,6 +111,7 @@ test.describe('demo mode', () => {
     expect(bootMs).toBeLessThanOrEqual(60_000)
     await expect(page.getByTestId('demo-status')).toContainText('demo_v1')
     await expect(page.getByTestId('demo-fatal')).toHaveCount(0)
+    await expectChecksClean(page)
 
     // SELECT count(*) FROM users == slider value.
     const rows = Number(await page.getByTestId('demo-rows').inputValue())
@@ -145,6 +153,7 @@ test.describe('demo mode', () => {
     await expect(page.getByTestId('demo-status')).toContainText('demo_v2', {
       timeout: BOOT_TIMEOUT,
     })
+    await expectChecksClean(page)
     await runSql(page, "SELECT count(*) FROM pragma_table_info('users') WHERE name = 'nick1'")
     await expect(firstCell(page)).toHaveText('1')
 
@@ -154,6 +163,7 @@ test.describe('demo mode', () => {
     await expect(page.getByTestId('demo-status')).toContainText('demo_v3', {
       timeout: BOOT_TIMEOUT,
     })
+    await expectChecksClean(page)
     await runSql(
       page,
       "SELECT count(*) FROM pragma_table_info('users') WHERE name IN ('nick1', 'nick2')",
@@ -179,5 +189,35 @@ test.describe('demo mode', () => {
     expect(await firstCell(page).textContent()).not.toBe(before)
     await runSql(page, 'SELECT count(*) FROM users')
     await expect(firstCell(page)).toHaveText(String(rows))
+  })
+
+  test('E-commerce example: system checks are clean after build and rebuild', async ({ page }) => {
+    test.slow()
+    await page.goto(URL)
+    await page.getByTestId('btn-examples').click()
+    await page.getByTestId('example-ecommerce').click()
+    await expect.poll(() => tableNames(page)).toContain('order_items')
+
+    await page.getByTestId('tab-demo').click()
+    await page.getByTestId('demo-start').click()
+    await expect(page.getByTestId('demo-status')).toContainText('Ready', { timeout: BOOT_TIMEOUT })
+    await expect(page.getByTestId('demo-fatal')).toHaveCount(0)
+    await expectChecksClean(page)
+
+    // Every table got rows and the seed is referentially sound.
+    await runSql(page, 'SELECT count(*) FROM order_items')
+    expect(Number(await firstCell(page).textContent())).toBeGreaterThan(0)
+    await runSql(page, 'PRAGMA foreign_key_check')
+    await expect(page.getByTestId('demo-rowcount')).toHaveText(/^0 rows/)
+
+    // Schema change → rebuild → checks still clean.
+    await addColumn(page, 'loyalty_tier')
+    await expect(page.getByTestId('demo-rebuild-banner')).toBeVisible()
+    await page.getByTestId('demo-rebuild').click()
+    await expect(page.getByTestId('demo-rebuild-banner')).toBeHidden({ timeout: BOOT_TIMEOUT })
+    await expect(page.getByTestId('demo-status')).toContainText('Ready', { timeout: BOOT_TIMEOUT })
+    await expectChecksClean(page)
+    await runOrm(page, 'Customer.objects.count()')
+    await expect(firstCell(page)).toHaveText(/^\d+$/)
   })
 })
