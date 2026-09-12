@@ -5,6 +5,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { openImport } from './helpers'
 
 const SQL_FIXTURE = readFileSync(path.resolve(import.meta.dirname, '../fixtures/sql/ecommerce.postgres.sql'), 'utf8')
 
@@ -178,8 +179,7 @@ test.describe('editors', () => {
 
   test('import the Postgres SQL fixture, then export Postgres DDL', async ({ page }) => {
     await boot(page)
-    await page.getByTestId('btn-import').click()
-    await page.getByTestId('menu-import-paste').click()
+    await openImport(page)
     const dialog = page.getByTestId('import-dialog')
     await expect(dialog).toBeVisible()
     await page.getByTestId('import-tab-sql').click()
@@ -216,8 +216,7 @@ test.describe('editors', () => {
 
   test('import errors are shown inline with the failing line', async ({ page }) => {
     await boot(page)
-    await page.getByTestId('btn-import').click()
-    await page.getByTestId('menu-import-paste').click()
+    await openImport(page)
     await page.getByTestId('import-tab-dbml').click()
     await page.getByTestId('import-text').fill('Table ok {\n  id int\n}\n\nTable broken {\n  ???\n}\n')
     await page.getByTestId('import-submit').click()

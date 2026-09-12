@@ -4,6 +4,7 @@
  * and is marked slow (3× the default timeout).
  */
 import { expect, test, type Page } from '@playwright/test'
+import { openExamples } from './helpers'
 
 const URL = '/?e2e'
 const BOOT_TIMEOUT = 90_000
@@ -93,7 +94,7 @@ test.describe('demo mode', () => {
   }) => {
     test.slow()
     await page.goto(URL)
-    await page.getByTestId('btn-examples').click()
+    await openExamples(page)
     await page.getByTestId('example-blog').click()
     await expect.poll(() => tableNames(page)).toEqual(['users', 'posts', 'tags', 'comments'])
 
@@ -194,7 +195,7 @@ test.describe('demo mode', () => {
   test('E-commerce example: system checks are clean after build and rebuild', async ({ page }) => {
     test.slow()
     await page.goto(URL)
-    await page.getByTestId('btn-examples').click()
+    await openExamples(page)
     await page.getByTestId('example-ecommerce').click()
     await expect.poll(() => tableNames(page)).toContain('order_items')
 

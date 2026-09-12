@@ -7,32 +7,21 @@ import { useSchemaStore } from '@/store'
 import { handleId } from './handles'
 import type { TableNodeType } from './types'
 
-/** Pick black or white text for a hex background. */
-export function contrastText(hex: string | undefined): string | undefined {
-  if (!hex) return undefined
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
-  if (!m) return undefined
-  const n = parseInt(m[1], 16)
-  const r = (n >> 16) & 255
-  const g = (n >> 8) & 255
-  const b = n & 255
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return lum > 0.6 ? '#18181b' : '#fafafa'
+/**
+ * Keys get a chip, flags do not. PK and FK say something structural about the column, so they earn
+ * a filled shape; "unique" and "not null" are annotations and stay as quiet monospace letters.
+ */
+function Badge({ children, title, tone }: { children: string; title: string; tone: 'pk' | 'fk' }) {
+  return (
+    <span title={title} data-testid={`badge-${tone}`} className={`erd-badge erd-badge--${tone}`}>
+      {children}
+    </span>
+  )
 }
 
-function Badge({ children, title, tone }: { children: string; title: string; tone: 'pk' | 'fk' | 'u' | 'nn' }) {
+function Flag({ children, title, tone }: { children: string; title: string; tone: 'u' | 'nn' }) {
   return (
-    <span
-      title={title}
-      data-testid={`badge-${tone}`}
-      className={clsx(
-        'rounded px-1 text-[9px] font-bold leading-4 tracking-wide',
-        tone === 'pk' && 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
-        tone === 'fk' && 'bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200',
-        tone === 'u' && 'bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200',
-        tone === 'nn' && 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200',
-      )}
-    >
+    <span title={title} data-testid={`badge-${tone}`} className="erd-flagmark">
       {children}
     </span>
   )
@@ -66,7 +55,7 @@ function ColumnRow({
         data-testid="handle-L"
       />
       <span className="erd-row__name" title={column.note ? `${column.name} — ${column.note}` : column.name}>
-        {column.name || <span className="italic text-zinc-400">unnamed</span>}
+        {column.name || <span className="erd-row__empty italic">unnamed</span>}
       </span>
       <span className="erd-row__type" title={column.type}>
         {column.type}
@@ -74,8 +63,8 @@ function ColumnRow({
       <span className="erd-row__badges">
         {column.pk && <Badge tone="pk" title="Primary key">PK</Badge>}
         {isFk && <Badge tone="fk" title="Foreign key">FK</Badge>}
-        {column.unique && !column.pk && <Badge tone="u" title="Unique">U</Badge>}
-        {column.notNull && !column.pk && <Badge tone="nn" title="Not null">NN</Badge>}
+        {column.unique && !column.pk && <Flag tone="u" title="Unique">U</Flag>}
+        {column.notNull && !column.pk && <Flag tone="nn" title="Not null">NN</Flag>}
       </span>
       <Handle
         type="source"
@@ -120,9 +109,8 @@ function TableNodeImpl({ id, selected }: NodeProps<TableNodeType>) {
   // Part of a multi-selection: worth marking explicitly, since a ring alone is easy to lose track
   // of once several tables are picked.
   const multi = selected && multiSelect.includes(id)
-  const headerStyle = table.headerColor
-    ? { background: table.headerColor, color: contrastText(table.headerColor) }
-    : undefined
+  // The table's colour is an identifier, not a fill: one small dot instead of a saturated bar.
+  const dotStyle = table.headerColor ? { background: table.headerColor } : undefined
 
   return (
     <div
@@ -138,11 +126,12 @@ function TableNodeImpl({ id, selected }: NodeProps<TableNodeType>) {
           </svg>
         </span>
       )}
-      <div className="erd-table__header" style={headerStyle} data-testid="table-header">
+      <div className="erd-table__header" data-testid="table-header">
+        <span className="erd-table__dot" style={dotStyle} data-testid="table-dot" aria-hidden />
         <span className="truncate" title={table.schema ? `${table.schema}.${table.name}` : table.name}>
           {table.name || <span className="italic opacity-60">unnamed</span>}
         </span>
-        {table.alias && <span className="ml-1 truncate text-[10px] font-normal opacity-70">as {table.alias}</span>}
+        {table.alias && <span className="erd-row__type truncate">as {table.alias}</span>}
         {table.note && (
           <svg
             aria-label="Has note"
@@ -168,7 +157,7 @@ function TableNodeImpl({ id, selected }: NodeProps<TableNodeType>) {
             selected={selectedColumnId === c.id}
           />
         ))}
-        {table.columns.length === 0 && <li className="erd-row italic text-zinc-400">no columns</li>}
+        {table.columns.length === 0 && <li className="erd-row erd-row__empty italic">no columns</li>}
       </ul>
     </div>
   )

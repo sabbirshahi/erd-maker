@@ -1,6 +1,7 @@
 /** Export the React Flow canvas as a PNG via html-to-image. */
 import { toPng } from 'html-to-image'
 import { toast } from './toast'
+import { readToken } from '@/canvas/tokens'
 
 const EXCLUDE = ['react-flow__controls', 'react-flow__minimap', 'react-flow__attribution', 'react-flow__panel']
 
@@ -53,10 +54,10 @@ export async function exportCanvasPng(filename = 'erd.png'): Promise<boolean> {
   }
   const restoreEdges = inlineEdgeStyles(el)
   try {
-    const dark = document.documentElement.classList.contains('dark')
     const dataUrl = await toPng(el, {
       pixelRatio: 2,
-      backgroundColor: dark ? '#09090b' : '#fafafa',
+      // The exported image should sit on the same ground the canvas does, in either theme.
+      backgroundColor: readToken('--erd-bg'),
       cacheBust: true,
       filter: (node) => {
         const cl = (node as HTMLElement).classList

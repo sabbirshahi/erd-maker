@@ -23,7 +23,7 @@ export function EmptyState({
             <path d="M7 9v5a2 2 0 0 0 2 2h4" />
           </svg>
         </div>
-        <h2 className="text-base font-semibold">Design a database in your browser</h2>
+        <h2 className="text-base font-medium">Design a database in your browser</h2>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           DBML, a live diagram and Django models — always in sync. Nothing leaves your browser.
         </p>

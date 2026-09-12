@@ -3,6 +3,7 @@
  * OWNER: worker-6.
  */
 import { clsx } from 'clsx'
+import './shell.css'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSchemaStore, useAllDiagnostics, undo, redo, type TextView } from '@/store'
 import { EmptyState } from './EmptyState'
@@ -17,6 +18,7 @@ import { shareCurrent } from './share'
 import { useTheme } from './theme'
 import { toast } from './toast'
 import { Button, ErrorBoundary, IconButton, Menu, Tabs } from './ui'
+import { useStore } from 'zustand'
 
 type RightTab = TextView | 'demo'
 
@@ -24,9 +26,10 @@ const UI_KEY = 'dbridge:ui:v1'
 interface UiPrefs {
   rightWidth: number
   problemsOpen: boolean
+  rightCollapsed: boolean
   tab: RightTab
 }
-const defaultPrefs: UiPrefs = { rightWidth: 460, problemsOpen: false, tab: 'dbml' }
+const defaultPrefs: UiPrefs = { rightWidth: 460, problemsOpen: false, rightCollapsed: false, tab: 'dbml' }
 
 function readPrefs(): UiPrefs {
   try {
@@ -48,14 +51,66 @@ const GITHUB_URL = 'https://github.com/sabbirshahi/erd-maker'
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2 pr-2 font-semibold">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-indigo-600 dark:text-indigo-400" aria-hidden>
+    <div className="erd-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
         <rect x="3" y="3" width="8" height="6" rx="1" />
         <rect x="13" y="15" width="8" height="6" rx="1" />
         <path d="M7 9v5a2 2 0 0 0 2 2h4" />
       </svg>
       <span>DBridge</span>
     </div>
+  )
+}
+
+/**
+ * One line at the foot of the right panel, in place of the old full-width Problems bar.
+ *
+ * Most of the time there is nothing wrong, and a bar spanning the window to announce "0" is a lot
+ * of chrome for that. Quiet when the schema is clean; a button that opens the list when it is not.
+ */
+function StatusLine({
+  count,
+  errors,
+  warnings,
+  open,
+  onToggle,
+}: {
+  count: number
+  errors: number
+  warnings: number
+  open: boolean
+  onToggle: () => void
+}) {
+  if (count === 0) {
+    return (
+      <div className="erd-statusline" data-testid="tab-problems" data-count={0}>
+        <span className="erd-statusline__ok" aria-hidden>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </span>
+        Synced, no problems
+      </div>
+    )
+  }
+  const tone = errors > 0 ? 'error' : 'warning'
+  return (
+    <button
+      type="button"
+      className="erd-statusline erd-statusline--clickable"
+      data-testid="tab-problems"
+      data-count={count}
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={clsx('transition-transform', open && 'rotate-90')} aria-hidden>
+        <path d="m9 6 6 6-6 6" />
+      </svg>
+      <span className={`erd-statusline__count erd-statusline__count--${tone}`} data-testid="problems-badge">
+        {count}
+      </span>
+      {errors > 0 ? `${errors === 1 ? 'problem' : 'problems'} to fix` : `${warnings === 1 ? 'warning' : 'warnings'}`}
+    </button>
   )
 }
 
@@ -104,6 +159,9 @@ export function Shell() {
 
   const diagnostics = useAllDiagnostics()
   const counts = countBySeverity(diagnostics)
+  // Undo/redo live only in the header now, so they need the history depth the canvas toolbar used.
+  const past = useStore(useSchemaStore.temporal, (t) => t.pastStates.length)
+  const future = useStore(useSchemaStore.temporal, (t) => t.futureStates.length)
 
   // Undo / redo shortcuts (canvas & editors handle their own when focused).
   // The canvas selection toolbar asks for an export scoped to the selected tables.
@@ -165,6 +223,14 @@ export function Shell() {
   const onDividerUp = () => {
     dragging.current = false
   }
+  // A drag handle that only responds to a mouse is unusable without one.
+  const onDividerKey = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 64 : 16
+    if (e.key === 'ArrowLeft') patchPrefs({ rightWidth: Math.min(prefs.rightWidth + step, window.innerWidth - 320) })
+    else if (e.key === 'ArrowRight') patchPrefs({ rightWidth: Math.max(prefs.rightWidth - step, 280) })
+    else return
+    e.preventDefault()
+  }
 
   const exportJson = () => {
     const s = useSchemaStore.getState()
@@ -195,26 +261,18 @@ export function Shell() {
   const problemsCount = diagnostics.length
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100" data-testid="shell">
-      {/* Top bar */}
-      <header className="flex h-12 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900" data-testid="topbar">
+    <div className="erd-app" data-testid="shell">
+      {/* Top bar. One filled button exists in the product and it is Share; everything else is
+          quieter than the diagram's own name. */}
+      <header className="erd-topbar" data-testid="topbar">
         <Logo />
-        <ProjectMenu controller={session.controller} activeId={activeId} onActiveChange={setActiveId} />
-        <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
-        <Button variant="ghost" size="sm" data-testid="btn-examples" onClick={() => setGallery(true)}>
-          Examples
-        </Button>
-        <Menu
-          testId="import-menu"
-          trigger={({ onClick }) => (
-            <Button variant="ghost" size="sm" data-testid="btn-import" onClick={onClick}>
-              Import
-            </Button>
-          )}
-          items={[
-            { id: 'import-paste', label: 'Paste DBML / SQL / models.py…', onSelect: () => setImportOpen(true) },
-            { id: 'import-json', label: 'Open .json (schema + layout)…', onSelect: () => fileInput.current?.click() },
-          ]}
+        <ProjectMenu
+          controller={session.controller}
+          activeId={activeId}
+          onActiveChange={setActiveId}
+          onExamples={() => setGallery(true)}
+          onImport={() => setImportOpen(true)}
+          onOpenJson={() => fileInput.current?.click()}
         />
         <input
           ref={fileInput}
@@ -228,48 +286,46 @@ export function Shell() {
             e.target.value = ''
           }}
         />
-        <Menu
-          testId="export-menu"
-          trigger={({ onClick }) => (
-            <Button variant="ghost" size="sm" data-testid="btn-export" onClick={onClick}>
-              Export
-            </Button>
-          )}
-          items={[
-            { id: 'export-dialog', label: 'DBML / SQL / models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
-            { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
-            { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
-            { id: 'export-png', label: 'Export PNG', onSelect: () => void exportCanvasPng() },
-          ]}
-        />
-        <Button variant="ghost" size="sm" data-testid="btn-share" onClick={() => void shareCurrent(useSchemaStore)}>
-          Share
-        </Button>
-        <div className="mx-1 h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
-        <IconButton label="Undo (Ctrl+Z)" data-testid="btn-undo" onClick={() => undo()}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
-        </IconButton>
-        <IconButton label="Redo (Ctrl+Shift+Z)" data-testid="btn-redo" onClick={() => redo()}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
-        </IconButton>
+
         <div className="ml-auto flex items-center gap-1">
+          <IconButton label="Undo (Ctrl+Z)" data-testid="btn-undo" disabled={past === 0} onClick={() => undo()}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
+          </IconButton>
+          <IconButton label="Redo (Ctrl+Shift+Z)" data-testid="btn-redo" disabled={future === 0} onClick={() => redo()}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
+          </IconButton>
+
+          <span className="erd-divider mx-1" />
+
           <IconButton label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} data-testid="btn-theme" onClick={toggleTheme}>
             {theme === 'dark' ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
             ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
             )}
           </IconButton>
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="GitHub"
-            title="GitHub"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-700 hover:bg-zinc-200/70 dark:text-zinc-200 dark:hover:bg-zinc-800"
-          >
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub" title="GitHub" className="erd-iconbtn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z" /></svg>
           </a>
+
+          <Menu
+            align="right"
+            testId="export-menu"
+            trigger={({ onClick }) => (
+              <Button variant="outline" data-testid="btn-export" onClick={onClick} className="ml-1">
+                Export
+              </Button>
+            )}
+            items={[
+              { id: 'export-dialog', label: 'DBML, SQL or models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
+              { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
+              { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
+              { id: 'export-png', label: 'Export PNG', onSelect: () => void exportCanvasPng() },
+            ]}
+          />
+          <Button variant="primary" data-testid="btn-share" onClick={() => void shareCurrent(useSchemaStore)}>
+            Share
+          </Button>
         </div>
       </header>
 
@@ -288,92 +344,85 @@ export function Shell() {
           )}
         </section>
 
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          onPointerDown={onDividerDown}
-          onPointerMove={onDividerMove}
-          onPointerUp={onDividerUp}
-          className="w-1 shrink-0 cursor-col-resize bg-zinc-200 hover:bg-indigo-400 dark:bg-zinc-800 dark:hover:bg-indigo-500"
-        />
-
-        <aside className="flex min-h-0 flex-col bg-white dark:bg-zinc-900" style={{ width: prefs.rightWidth }} data-testid="right-pane">
-          <div className="flex items-center border-b border-zinc-200 px-2 dark:border-zinc-800">
-            <Tabs<RightTab>
-              value={prefs.tab}
-              onChange={(tab) => patchPrefs({ tab })}
-              items={[
-                { id: 'dbml', label: 'DBML' },
-                { id: 'django', label: 'Django' },
-                { id: 'demo', label: 'Demo' },
-              ]}
+        {prefs.rightCollapsed ? (
+          <div className="erd-rail" data-testid="right-rail">
+            <IconButton label="Show code panel" data-testid="btn-expand-right" onClick={() => patchPrefs({ rightCollapsed: false })}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m14 6-6 6 6 6" /></svg>
+            </IconButton>
+          </div>
+        ) : (
+          <>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize code panel"
+              tabIndex={0}
+              className="erd-resize"
+              onPointerDown={onDividerDown}
+              onPointerMove={onDividerMove}
+              onPointerUp={onDividerUp}
+              onKeyDown={onDividerKey}
             />
-          </div>
-          <div className="min-h-0 flex-1">
-            <div className={clsx('h-full', prefs.tab !== 'dbml' && 'hidden')}>
-              <Pane name="DBML editor">
-                <DbmlEditor />
-              </Pane>
-            </div>
-            <div className={clsx('h-full', prefs.tab !== 'django' && 'hidden')}>
-              <Pane name="Django editor">
-                <DjangoEditor />
-              </Pane>
-            </div>
-            {prefs.tab === 'demo' && (
-              <div className="h-full">
-                <Pane name="Demo">
-                  <DemoPanel />
-                </Pane>
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
 
-      {/* Problems */}
-      <footer
-        className={clsx(
-          'shrink-0 border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900',
-          // Open with nothing to show needs one line, not a quarter of the window.
-          prefs.problemsOpen ? (problemsCount > 0 ? 'h-56' : 'h-[4.75rem]') : 'h-8',
-        )}
-        data-testid="problems-footer"
-      >
-        <div className="flex h-8 items-center px-2">
-          <button
-            type="button"
-            data-testid="tab-problems"
-            aria-expanded={prefs.problemsOpen}
-            onClick={() => patchPrefs({ problemsOpen: !prefs.problemsOpen })}
-            className="inline-flex h-8 items-center gap-1.5 text-xs font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-200 dark:hover:text-white"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={clsx('transition-transform', prefs.problemsOpen && 'rotate-90')}><path d="m9 6 6 6-6 6" /></svg>
-            Problems
-            <span
-              data-testid="problems-badge"
-              className={clsx(
-                'rounded-full px-1.5 text-[10px] leading-4 tabular-nums',
-                counts.error > 0
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-100'
-                  : counts.warning > 0
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100'
-                    : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100',
+            <aside className="erd-rightpane" style={{ width: prefs.rightWidth }} data-testid="right-pane">
+              <div className="erd-rightpane__head">
+                <Tabs<RightTab>
+                  value={prefs.tab}
+                  onChange={(tab) => patchPrefs({ tab })}
+                  items={[
+                    { id: 'dbml', label: 'DBML' },
+                    { id: 'django', label: 'Django' },
+                    { id: 'demo', label: 'SQL' },
+                  ]}
+                />
+                <button
+                  type="button"
+                  className="erd-collapse"
+                  data-testid="btn-collapse-right"
+                  aria-label="Hide code panel"
+                  title="Hide code panel"
+                  onClick={() => patchPrefs({ rightCollapsed: true })}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m10 6 6 6-6 6" /></svg>
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1">
+                <div className={clsx('h-full', prefs.tab !== 'dbml' && 'hidden')}>
+                  <Pane name="DBML editor">
+                    <DbmlEditor />
+                  </Pane>
+                </div>
+                <div className={clsx('h-full', prefs.tab !== 'django' && 'hidden')}>
+                  <Pane name="Django editor">
+                    <DjangoEditor />
+                  </Pane>
+                </div>
+                {prefs.tab === 'demo' && (
+                  <div className="h-full">
+                    <Pane name="Demo">
+                      <DemoPanel />
+                    </Pane>
+                  </div>
+                )}
+              </div>
+
+              {problemsCount > 0 && prefs.problemsOpen && (
+                <div className="h-56 shrink-0" data-testid="problems-drawer">
+                  <ProblemsPanel onGoto={(view) => patchPrefs({ tab: view })} />
+                </div>
               )}
-            >
-              {problemsCount}
-            </span>
-          </button>
-          {problemsCount === 0 && !prefs.problemsOpen && (
-            <span className="ml-2 text-[11px] text-zinc-400">No problems</span>
-          )}
-        </div>
-        {prefs.problemsOpen && (
-          <div className="h-[calc(100%-2rem)]">
-            <ProblemsPanel onGoto={(view) => patchPrefs({ tab: view })} />
-          </div>
+              <StatusLine
+                count={problemsCount}
+                errors={counts.error}
+                warnings={counts.warning}
+                open={prefs.problemsOpen}
+                onToggle={() => patchPrefs({ problemsOpen: !prefs.problemsOpen })}
+              />
+            </aside>
+          </>
         )}
-      </footer>
+      </div>
 
       <ExamplesGallery open={gallery} onClose={() => setGallery(false)} />
       <Pane name="Import dialog">

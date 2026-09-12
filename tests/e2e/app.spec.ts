@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openExamples } from './helpers'
 
 const URL = '/?e2e'
 
@@ -50,7 +51,7 @@ test.describe('app shell', () => {
 
   test('share link opens the same schema in a fresh context', async ({ page, browser }) => {
     await page.goto(URL)
-    await page.getByTestId('btn-examples').click()
+    await openExamples(page)
     await page.getByTestId('example-school').click()
     await expect.poll(() => tableNames(page)).toContain('students')
 
@@ -89,7 +90,7 @@ test.describe('app shell', () => {
 
   test('Copy button writes the clipboard and toasts', async ({ page }) => {
     await page.goto(URL)
-    await page.getByTestId('btn-examples').click()
+    await openExamples(page)
     await page.getByTestId('example-blog').click()
     await expect.poll(() => tableNames(page)).toContain('users')
     const copy = page.getByTestId('copy-dbml').first()
@@ -111,19 +112,19 @@ test.describe('app shell', () => {
     expect(await isDark()).toBe(!before)
   })
 
-  test('right pane tabs mount the real DBML, Django and Demo panes', async ({ page }) => {
+  test('right pane tabs mount the real DBML, Django and SQL panes', async ({ page }) => {
     await page.goto(URL)
     await expect(page.getByTestId('dbml-pane')).toBeVisible()
     await page.getByRole('tab', { name: 'Django' }).click()
     await expect(page.getByTestId('django-pane')).toBeVisible()
-    await page.getByRole('tab', { name: 'Demo' }).click()
+    await page.getByRole('tab', { name: 'SQL' }).click()
     await expect(page.getByTestId('demo-panel')).toBeVisible()
     await expect(page.locator('[data-testid^="placeholder-"]')).toHaveCount(0)
   })
 
   test('Export PNG downloads a rendered image of the canvas', async ({ page }) => {
     await page.goto(URL)
-    await page.getByTestId('btn-examples').click()
+    await openExamples(page)
     await page.getByTestId('example-blog').click()
     await expect(page.getByTestId('table-node')).toHaveCount(4)
     await page.getByTestId('btn-export').click()
@@ -146,7 +147,7 @@ test.describe('app shell', () => {
     await expect(page.getByTestId('menu-export-png')).toBeVisible()
     await expect(page.getByTestId('menu-export-json')).toBeVisible()
     await page.keyboard.press('Escape')
-    await page.getByTestId('btn-examples').click()
+    await openExamples(page)
     await page.getByTestId('example-ecommerce').click()
     await expect.poll(() => tableNames(page)).toContain('orders')
     await page.getByTestId('btn-undo').click()

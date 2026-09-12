@@ -5,9 +5,7 @@ import {
   Background,
   BackgroundVariant,
   ConnectionMode,
-  Controls,
   MarkerType,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   useNodesInitialized,
@@ -28,6 +26,8 @@ import { buildRef, validateConnection } from './connection'
 import { canvasDiagnostics } from './diagnostics'
 import { handleId } from './handles'
 import { computeHighlight } from './highlight'
+import { CollapsibleMiniMap, ZoomPill } from './Controls'
+import { useTokens } from './tokens'
 import { Inspector } from './Inspector'
 import { SelectionToolbar } from './SelectionToolbar'
 import { estimateTableSize, placeUnpositioned, type Size } from './layout'
@@ -128,8 +128,11 @@ function CanvasInner() {
     [schema.tables, layout, fallback, dragPos, measured, selection.tableId, multiSelect, dimAnchor, hl],
   )
 
-  const edgeColor = colorMode === 'dark' ? '#71717a' : '#a1a1aa'
-  const edgeColorHl = colorMode === 'dark' ? '#a5b4fc' : '#4f46e5'
+  // Marker fills are handed to React Flow as strings, where var() is not accepted, so the values
+  // are resolved from tokens.css rather than restated here.
+  const token = useTokens(['--erd-edge', '--erd-accent', '--erd-dot'] as const, colorMode)
+  const edgeColor = token['--erd-edge']
+  const edgeColorHl = token['--erd-accent']
   const edges = useMemo<RefEdgeType[]>(() => {
     const centreX = (tableId: string): number | undefined => {
       const t = schema.tables.find((x) => x.id === tableId)
@@ -342,22 +345,11 @@ function CanvasInner() {
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: 'ref' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-        <Controls showInteractive={false} position="bottom-left" />
-        {schema.tables.length >= 6 && (
-          <MiniMap
-            pannable
-            zoomable
-            position="bottom-right"
-            nodeStrokeWidth={2}
-            className="erd-minimap"
-            nodeColor={(n) => schema.tables.find((t) => t.id === n.id)?.headerColor ?? (colorMode === 'dark' ? '#3f3f46' : '#d4d4d8')}
-            nodeStrokeColor={colorMode === 'dark' ? '#52525b' : '#a1a1aa'}
-            maskColor={colorMode === 'dark' ? 'rgb(9 9 11 / 0.6)' : 'rgb(244 244 245 / 0.6)'}
-          />
-        )}
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color={token['--erd-dot']} />
+        <ZoomPill onFit={actions.fitView} />
         <Toolbar actions={actions} busy={busy} />
       </ReactFlow>
+      {schema.tables.length >= 6 && <CollapsibleMiniMap schema={schema} colorMode={colorMode} />}
       <Inspector />
       <SelectionToolbar
         actions={actions}

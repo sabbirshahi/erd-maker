@@ -69,12 +69,7 @@ export function Toaster() {
           key={t.id}
           role="status"
           data-testid="toast"
-          className={
-            'pointer-events-auto rounded-md px-3 py-2 text-sm shadow-lg ring-1 ' +
-            (t.kind === 'error'
-              ? 'bg-red-600 text-white ring-red-700'
-              : 'bg-zinc-900 text-zinc-50 ring-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:ring-zinc-300')
-          }
+          className={'pointer-events-auto erd-toast' + (t.kind === 'error' ? ' erd-toast--error' : '')}
         >
           {t.message}
         </div>

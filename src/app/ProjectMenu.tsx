@@ -1,14 +1,14 @@
 /**
- * Project switcher + explicit Save for the top bar.
+ * The diagram's name in the top bar: switcher, rename, and the autosave indicator.
  *
- * Several diagrams live in one browser; each is a named project in localStorage. Edits are also
- * autosaved into the active project, so the Save button is a visible checkpoint rather than the
- * only thing standing between the user and lost work.
+ * There is no Save button. Edits autosave into the active project after a short idle, so the bar
+ * reports when that last happened ("Saved 2m ago") instead of asking the user to do it. Ctrl+S
+ * still forces an immediate write, and the label itself becomes the way out of a save conflict.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useSchemaStore } from '@/store'
 import { emptySchema } from '@/core/schema'
-import { Button, Menu } from './ui'
+import { Menu } from './ui'
 import { toast } from './toast'
 import {
   createProject,
@@ -22,33 +22,36 @@ import {
 import { setTabProject } from './session'
 import type { SaveController, SaveStatus } from './saveController'
 
-const STATUS_TEXT: Record<SaveStatus, string> = {
-  saved: 'Saved',
-  unsaved: 'Unsaved',
-  saving: 'Saving…',
-  error: 'Save failed',
-  conflict: 'Changed elsewhere',
+/** "Saved 2m ago" reads as reassurance; a bare "Saved" leaves the user wondering when. */
+function agoText(iso: string | null): string {
+  if (!iso) return 'Saved'
+  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
+  if (secs < 45) return 'Saved just now'
+  const mins = Math.round(secs / 60)
+  if (mins < 60) return `Saved ${mins}m ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `Saved ${hours}h ago`
+  return `Saved ${Math.round(hours / 24)}d ago`
 }
 
-const STATUS_CLASS: Record<SaveStatus, string> = {
-  saved: 'text-zinc-400 dark:text-zinc-500',
-  unsaved: 'text-amber-600 dark:text-amber-400',
-  saving: 'text-blue-600 dark:text-blue-400',
-  error: 'text-red-600 dark:text-red-400',
-  conflict: 'text-amber-600 dark:text-amber-400',
+function statusText(status: SaveStatus, lastSavedAt: string | null): string {
+  switch (status) {
+    case 'saving':
+      return 'Saving…'
+    case 'unsaved':
+      return 'Unsaved changes'
+    case 'error':
+      return 'Save failed'
+    case 'conflict':
+      return 'Changed in another tab'
+    default:
+      return agoText(lastSavedAt)
+  }
 }
 
-/** Small caps heading that separates the diagram list from the actions below it. */
+/** Quiet heading that separates the diagram list from the actions below it. */
 function SectionLabel({ children, border = false }: { children: React.ReactNode; border?: boolean }) {
-  return (
-    <span
-      className={`-mx-3 -my-1 block px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 ${
-        border ? 'mt-1 border-t border-zinc-200 dark:border-zinc-700' : ''
-      }`}
-    >
-      {children}
-    </span>
-  )
+  return <span className={`erd-menu__section${border ? ' erd-menu__section--border' : ''}`}>{children}</span>
 }
 
 /**
@@ -60,12 +63,14 @@ const ICONS = {
   pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z',
   copy: 'M9 9h10v10H9zM5 15H4V4h11v1',
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
+  grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
+  download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 19h16',
 } as const
 
 function Action({ icon, children, danger = false }: { icon: keyof typeof ICONS; children: React.ReactNode; danger?: boolean }) {
   return (
-    <span className={`flex items-center gap-2 ${danger ? 'text-red-600 dark:text-red-400' : ''}`}>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70">
+    <span className={`flex items-center gap-2 ${danger ? 'erd-menuitem--danger' : ''}`}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70">
         <path d={ICONS[icon]} />
       </svg>
       {children}
@@ -77,16 +82,30 @@ export interface ProjectMenuProps {
   controller: SaveController
   activeId: string
   onActiveChange: (id: string) => void
+  /** Ways to start a diagram. They live here rather than in the bar, which is for the current one. */
+  onExamples: () => void
+  onImport: () => void
+  onOpenJson: () => void
 }
 
-export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMenuProps) {
+export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, onImport, onOpenJson }: ProjectMenuProps) {
   const [projects, setProjects] = useState<ProjectMeta[]>(() => listProjects())
-  const [status, setStatus] = useState<SaveStatus>(controller.status)
   const [renaming, setRenaming] = useState(false)
   const renameInput = useRef<HTMLInputElement>(null)
 
-  useEffect(() => setStatus(controller.status), [controller])
-  useEffect(() => controller.subscribe(() => setStatus(controller.status)), [controller])
+  // The controller is an external store; subscribing to it directly keeps the label in step
+  // without mirroring its state into this component.
+  const subscribe = useCallback((cb: () => void) => controller.subscribe(cb), [controller])
+  const status = useSyncExternalStore(subscribe, () => controller.status)
+  const savedAt = useSyncExternalStore(subscribe, () => controller.lastSavedAt)
+
+  // Nothing changes when the user sits still, but "just now" still has to become "2m ago".
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [])
+
   useEffect(() => {
     if (renaming) renameInput.current?.select()
   }, [renaming])
@@ -171,8 +190,26 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
     [active, activeId, refresh],
   )
 
+  /**
+   * The status label is also the escape hatch. With no Save button, a failed or conflicting save
+   * would otherwise be a dead end, so clicking the label retries it.
+   */
+  const stuck = status === 'conflict' || status === 'error'
+  const retry = () => {
+    if (!stuck) return
+    if (controller.save()) return void toast('Saved')
+    if (
+      controller.status === 'conflict' &&
+      window.confirm('Another tab saved this diagram after you opened it.\n\nOverwrite it with your version?')
+    ) {
+      if (controller.save(true)) toast('Saved')
+    } else {
+      toast('Could not save: browser storage is full or unavailable', 'error')
+    }
+  }
+
   return (
-    <div className="flex min-w-0 items-center gap-1.5" data-testid="project-bar">
+    <div className="flex min-w-0 items-center gap-2" data-testid="project-bar">
       {renaming ? (
         <input
           ref={renameInput}
@@ -183,27 +220,27 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
             if (e.key === 'Enter') commitRename((e.target as HTMLInputElement).value)
             if (e.key === 'Escape') setRenaming(false)
           }}
-          className="w-40 rounded border border-blue-500 bg-white px-1.5 py-0.5 text-sm outline-none dark:bg-zinc-900"
+          className="erd-rename-input"
         />
       ) : (
         <Menu
           testId="project-menu"
           trigger={({ onClick }) => (
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
+              className="erd-hdr-title"
               data-testid="btn-project"
               onClick={onClick}
               onDoubleClick={() => setRenaming(true)}
-              title="Projects — double-click the name to rename"
+              title="Diagrams — double-click the name to rename"
             >
-              <span className="max-w-40 truncate font-medium" data-testid="project-name">
+              <span className="truncate" data-testid="project-name">
                 {active?.name ?? 'Untitled diagram'}
               </span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-1 opacity-60">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
                 <path d="m6 9 6 6 6-6" />
               </svg>
-            </Button>
+            </button>
           )}
           items={[
             { id: 'hdr-open', label: <SectionLabel>Switch to</SectionLabel>, disabled: true, onSelect: () => {} },
@@ -211,44 +248,36 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
               id: `project-${p.id}`,
               label: (
                 <span className="flex items-center gap-2 pl-1">
-                  <span className={`w-3 text-blue-600 dark:text-blue-400 ${p.id === activeId ? '' : 'opacity-0'}`}>✓</span>
+                  <span className={p.id === activeId ? '' : 'opacity-0'} style={{ color: 'var(--erd-accent)' }}>
+                    ✓
+                  </span>
                   <span className="truncate">{p.name}</span>
                 </span>
               ),
               onSelect: () => switchTo(p.id),
             })),
             { id: 'hdr-manage', label: <SectionLabel border>Manage</SectionLabel>, disabled: true, onSelect: () => {} },
-            { id: 'project-new', label: <Action icon="plus">New project</Action>, onSelect: newProject },
+            { id: 'project-new', label: <Action icon="plus">New diagram</Action>, onSelect: newProject },
             { id: 'project-rename', label: <Action icon="pencil">Rename…</Action>, onSelect: () => setRenaming(true) },
             { id: 'project-duplicate', label: <Action icon="copy">Duplicate</Action>, onSelect: duplicate },
             { id: 'project-delete', label: <Action icon="trash" danger>Delete…</Action>, onSelect: remove },
+            { id: 'hdr-start', label: <SectionLabel border>Start from</SectionLabel>, disabled: true, onSelect: () => {} },
+            { id: 'project-examples', label: <Action icon="grid">Examples…</Action>, onSelect: onExamples },
+            { id: 'project-import', label: <Action icon="download">Paste DBML, SQL or models.py…</Action>, onSelect: onImport },
+            { id: 'import-json', label: <Action icon="download">Open .json…</Action>, onSelect: onOpenJson },
           ]}
         />
       )}
 
-      <Button
-        variant="ghost"
-        size="sm"
-        data-testid="btn-save"
-        title="Save (Ctrl+S)"
-        onClick={() => {
-          if (controller.save()) {
-            toast(`Saved ${active?.name ?? 'project'}`)
-          } else if (controller.status === 'conflict') {
-            // Another tab saved this project after we loaded it; overwriting is the user's call.
-            if (window.confirm('Another tab saved this diagram after you opened it.\n\nOverwrite it with your version?')) {
-              if (controller.save(true)) toast(`Saved ${active?.name ?? 'project'}`)
-            }
-          } else {
-            toast('Could not save: browser storage is full or unavailable', 'error')
-          }
-        }}
-      >
-        Save
-      </Button>
-      <span data-testid="save-status" data-status={status} className={`hidden text-xs sm:inline ${STATUS_CLASS[status]}`}>
-        {STATUS_TEXT[status]}
-      </span>
+      {stuck ? (
+        <button type="button" className="erd-hdr-status" data-testid="save-status" data-status={status} onClick={retry} title="Click to try saving again">
+          {statusText(status, savedAt)}
+        </button>
+      ) : (
+        <span className="erd-hdr-status" data-testid="save-status" data-status={status}>
+          {statusText(status, savedAt)}
+        </span>
+      )}
     </div>
   )
 }

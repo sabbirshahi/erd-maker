@@ -1,81 +1,72 @@
-/* Canvas-specific styles layered on top of React Flow's base styles and Tailwind. */
+/**
+ * Canvas styles layered on top of React Flow's base styles.
+ *
+ * Every value here comes from src/tokens.css. If you reach for a hex literal, add a token instead.
+ */
 
 .erd-canvas {
   position: relative;
   height: 100%;
   width: 100%;
-  --erd-node-bg: #ffffff;
-  --erd-node-border: #d4d4d8;
-  --erd-node-header: #f4f4f5;
-  --erd-node-text: #18181b;
-  --erd-node-muted: #71717a;
-  --erd-row-hover: #f4f4f5;
-  --erd-row-selected: #eef2ff;
-  --erd-accent: #4f46e5;
-  --erd-edge: #a1a1aa;
-  --erd-edge-selected: #4f46e5;
-  --erd-panel-bg: rgba(255, 255, 255, 0.92);
-  --erd-panel-border: #e4e4e7;
-}
-.dark .erd-canvas {
-  --erd-node-bg: #18181b;
-  --erd-node-border: #3f3f46;
-  --erd-node-header: #27272a;
-  --erd-node-text: #fafafa;
-  --erd-node-muted: #a1a1aa;
-  --erd-row-hover: #27272a;
-  --erd-row-selected: #312e81;
-  --erd-accent: #818cf8;
-  --erd-edge: #71717a;
-  --erd-edge-selected: #a5b4fc;
-  --erd-panel-bg: rgba(24, 24, 27, 0.92);
-  --erd-panel-border: #3f3f46;
 }
 
 /* ---- nodes ---- */
 .react-flow__node-table {
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--erd-radius-card);
+  font-size: var(--erd-fs-md);
   color: var(--erd-node-text);
-  transition: opacity 0.15s ease;
+  transition: opacity var(--erd-transition);
 }
 .erd-table {
   min-width: 200px;
   max-width: 420px;
-  border: 1px solid var(--erd-node-border);
-  border-radius: 8px;
+  border: var(--erd-hairline-width) solid var(--erd-node-border);
+  border-radius: var(--erd-radius-card);
   background: var(--erd-node-bg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.06);
   overflow: visible;
 }
 .erd-table--selected {
-  box-shadow: 0 0 0 2px var(--erd-accent), 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--erd-accent);
+  box-shadow: 0 0 0 1px var(--erd-accent);
 }
+
+/* The card stays neutral; identity comes from the name and a small accent dot, so a wall of
+   tables reads as one surface instead of eight competing colour blocks. */
 .erd-table__header {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--erd-node-border);
-  border-radius: 8px 8px 0 0;
-  background: var(--erd-node-header);
-  font-weight: 600;
-  font-size: 13px;
+  gap: var(--erd-space-3);
+  padding: var(--erd-space-3) var(--erd-space-4);
+  border-bottom: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-card) var(--erd-radius-card) 0 0;
+  background: var(--erd-node-bg);
+  font-weight: var(--erd-weight-medium);
+  font-size: var(--erd-fs-lg);
   cursor: grab;
+}
+.erd-table__dot {
+  flex: none;
+  width: var(--erd-dot-size);
+  height: var(--erd-dot-size);
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-c-slate);
 }
 .erd-table__rows {
   list-style: none;
   margin: 0;
-  padding: 3px 0;
+  padding: var(--erd-space-2) 0;
 }
+
+/* ---- rows: name (1fr) | type (auto, mono, muted) | badges (auto) ---- */
 .erd-row {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
-  height: 26px;
-  padding: 0 10px;
+  gap: var(--erd-space-4);
+  height: var(--erd-row-h);
+  padding: 0 var(--erd-space-4);
+  font-size: var(--erd-fs-sm);
   cursor: default;
 }
 .erd-row:hover {
@@ -89,19 +80,47 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.erd-row__empty {
+  color: var(--erd-text-muted);
+}
 .erd-row__type {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 11rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
   color: var(--erd-node-muted);
 }
 .erd-row__badges {
   display: flex;
-  gap: 3px;
+  align-items: center;
+  gap: var(--erd-space-2);
   min-width: 0;
+}
+
+/* Keys get a chip because they carry structure; flags are just annotations, so they stay as
+   plain muted letters and keep the row quiet. */
+.erd-badge {
+  padding: 0 var(--erd-space-2);
+  border-radius: var(--erd-radius-chip);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-xs);
+  font-weight: var(--erd-weight-medium);
+  line-height: 15px;
+}
+.erd-badge--pk {
+  background: var(--erd-badge-pk-bg);
+  color: var(--erd-badge-pk-fg);
+}
+.erd-badge--fk {
+  background: var(--erd-badge-fk-bg);
+  color: var(--erd-badge-fk-fg);
+}
+.erd-flagmark {
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-xs);
+  color: var(--erd-text-muted);
 }
 
 /* ---- handles ---- */
@@ -110,7 +129,7 @@
   height: 10px;
   border: 2px solid var(--erd-node-bg);
   background: var(--erd-node-muted);
-  border-radius: 999px;
+  border-radius: var(--erd-radius-pill);
   opacity: 0;
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
@@ -131,12 +150,12 @@
   transform: translate(50%, -50%) scale(1.3);
 }
 .react-flow__handle.erd-handle.valid {
-  background: #16a34a;
+  background: var(--erd-success);
 }
 
 /* ---- edges ---- */
 .react-flow__edge.erd-edge {
-  transition: opacity 0.15s ease;
+  transition: opacity var(--erd-transition);
 }
 .react-flow__edge.erd-edge .react-flow__edge-path {
   stroke: var(--erd-edge);
@@ -145,73 +164,80 @@
 .react-flow__edge.erd-edge:hover .react-flow__edge-path,
 .react-flow__edge.erd-edge.selected .react-flow__edge-path,
 .react-flow__edge.erd-edge.highlighted .react-flow__edge-path {
-  stroke: var(--erd-edge-selected);
-  stroke-width: 2.25;
+  stroke: var(--erd-edge-strong);
+  stroke-width: 2;
 }
 .erd-edge__label {
   position: absolute;
-  padding: 0 4px;
-  border-radius: 4px;
-  background: var(--erd-node-bg);
-  border: 1px solid var(--erd-node-border);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  padding: 0 var(--erd-space-2);
+  border-radius: var(--erd-radius-chip);
+  background: var(--erd-surface);
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-xs);
   color: var(--erd-node-muted);
   pointer-events: none;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--erd-transition);
 }
 .react-flow__edge.dimmed .erd-edge__label {
-  opacity: 0.3;
+  opacity: var(--erd-dim);
 }
 .erd-edge__toolbar {
   position: absolute;
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 6px;
+  gap: var(--erd-space-2);
+  padding: var(--erd-space-2);
+  border-radius: var(--erd-radius-control);
   background: var(--erd-panel-bg);
-  border: 1px solid var(--erd-panel-border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
   pointer-events: all;
   z-index: 10;
 }
 
-/* ---- M5 highlight / dim ---- */
+/* ---- highlight / dim ---- */
 .react-flow__node.dimmed,
 .react-flow__edge.dimmed {
-  opacity: 0.3;
+  opacity: var(--erd-dim);
 }
 .react-flow__node.highlighted .erd-table {
   border-color: var(--erd-accent);
 }
 
-/* ---- toolbar ---- */
+/* ---- floating panels ---- */
+.erd-panel {
+  display: flex;
+  align-items: center;
+  border-radius: var(--erd-radius-control);
+  background: var(--erd-panel-bg);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
+}
+
+/* ---- toolbar: one segmented pill, no undo/redo (those live in the header) ---- */
 .erd-toolbar.react-flow__panel {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin: 10px;
-  padding: 3px;
-  border-radius: 8px;
+  gap: 0;
+  margin: var(--erd-space-5);
+  padding: var(--erd-space-1);
+  border-radius: var(--erd-radius-control);
   background: var(--erd-panel-bg);
-  border: 1px solid var(--erd-panel-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(6px);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
 }
 .erd-toolbar__sep {
-  width: 1px;
-  height: 18px;
-  margin: 0 3px;
-  background: var(--erd-panel-border);
+  width: var(--erd-hairline-width);
+  height: 16px;
+  margin: 0 var(--erd-space-2);
+  background: var(--erd-hairline-strong);
 }
 .erd-tool {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 6px;
-  font-size: 12px;
+  gap: var(--erd-space-3);
+  height: var(--erd-control-h);
+  padding: 0 var(--erd-space-4);
+  border-radius: var(--erd-radius-chip);
+  font-size: var(--erd-fs-md);
+  font-weight: var(--erd-weight-normal);
   color: var(--erd-node-text);
   background: transparent;
   border: 0;
@@ -225,27 +251,72 @@
   cursor: default;
 }
 .erd-tool--danger:hover:not(:disabled) {
-  color: #dc2626;
+  color: var(--erd-danger);
+}
+
+/* ---- zoom pill (bottom-left) ---- */
+.erd-zoom.react-flow__panel {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: var(--erd-space-5);
+  padding: var(--erd-space-1);
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-panel-bg);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
+}
+.erd-zoom__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--erd-radius-pill);
+  background: transparent;
+  color: var(--erd-node-text);
+  cursor: pointer;
+}
+.erd-zoom__btn:hover:not(:disabled) {
+  background: var(--erd-row-hover);
+}
+.erd-zoom__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.erd-zoom__level {
+  min-width: 44px;
+  height: 26px;
+  padding: 0 var(--erd-space-2);
+  border: 0;
+  border-radius: var(--erd-radius-pill);
+  background: transparent;
+  color: var(--erd-node-muted);
+  font-size: var(--erd-fs-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.erd-zoom__level:hover {
+  background: var(--erd-row-hover);
+  color: var(--erd-node-text);
 }
 
 /* ---- inspector ---- */
 .erd-inspector {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  bottom: 10px;
+  top: var(--erd-space-5);
+  right: var(--erd-space-5);
+  bottom: var(--erd-space-5);
   z-index: 6;
   width: 22rem;
   max-width: calc(100% - 20px);
   overflow-y: auto;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: var(--erd-space-5);
+  border-radius: var(--erd-radius-card);
   background: var(--erd-panel-bg);
-  border: 1px solid var(--erd-panel-border);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(8px);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
   color: var(--erd-node-text);
-  font-size: 12px;
+  font-size: var(--erd-fs-md);
 }
 .erd-inspector--collapsed {
   bottom: auto;
@@ -254,27 +325,27 @@
 .erd-input,
 .erd-select {
   height: 26px;
-  padding: 0 6px;
-  border-radius: 5px;
-  border: 1px solid var(--erd-node-border);
+  padding: 0 var(--erd-space-3);
+  border-radius: var(--erd-radius-chip);
+  border: var(--erd-hairline-width) solid var(--erd-node-border);
   background: var(--erd-node-bg);
   color: var(--erd-node-text);
-  font-size: 12px;
+  font-size: var(--erd-fs-md);
   outline: none;
 }
 textarea.erd-input {
   height: auto;
-  padding: 4px 6px;
+  padding: var(--erd-space-2) var(--erd-space-3);
 }
 .erd-input:focus,
 .erd-select:focus {
   border-color: var(--erd-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--erd-accent) 30%, transparent);
+  box-shadow: 0 0 0 var(--erd-focus-width) color-mix(in srgb, var(--erd-focus) 30%, transparent);
 }
 .erd-col {
-  padding: 4px;
-  border-radius: 6px;
-  border: 1px solid transparent;
+  padding: var(--erd-space-2);
+  border-radius: var(--erd-radius-chip);
+  border: var(--erd-hairline-width) solid transparent;
 }
 .erd-col--selected {
   border-color: var(--erd-node-border);
@@ -284,55 +355,60 @@ textarea.erd-input {
   cursor: grab;
   user-select: none;
   color: var(--erd-node-muted);
-  font-size: 10px;
+  font-size: var(--erd-fs-xs);
   letter-spacing: -2px;
   padding: 0 1px;
 }
 .erd-flag {
   height: 22px;
   min-width: 26px;
-  padding: 0 5px;
-  border-radius: 4px;
-  border: 1px solid var(--erd-node-border);
+  padding: 0 var(--erd-space-3);
+  border-radius: var(--erd-radius-chip);
+  border: var(--erd-hairline-width) solid var(--erd-node-border);
   background: var(--erd-node-bg);
   color: var(--erd-node-muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-xs);
+  font-weight: var(--erd-weight-medium);
   cursor: pointer;
 }
 .erd-flag--on {
   background: var(--erd-accent);
   border-color: var(--erd-accent);
-  color: #fff;
+  color: var(--erd-on-accent);
 }
+
+/* Every interactive element shows the same ring. This is the only shadow in the UI. */
 .erd-flag:focus-visible,
 .erd-icon-btn:focus-visible,
 .erd-btn:focus-visible,
-.erd-tool:focus-visible {
-  outline: 2px solid var(--erd-accent);
-  outline-offset: 1px;
+.erd-tool:focus-visible,
+.erd-zoom__btn:focus-visible,
+.erd-zoom__level:focus-visible,
+.erd-swatch:focus-visible,
+.erd-minimap__toggle:focus-visible {
+  outline: var(--erd-focus-width) solid var(--erd-focus);
+  outline-offset: var(--erd-focus-offset);
 }
+
 .erd-btn {
   height: 24px;
-  padding: 0 8px;
-  border-radius: 5px;
-  border: 1px solid var(--erd-node-border);
+  padding: 0 var(--erd-space-4);
+  border-radius: var(--erd-radius-chip);
+  border: var(--erd-hairline-width) solid var(--erd-node-border);
   background: var(--erd-node-bg);
   color: var(--erd-node-text);
-  font-size: 11px;
+  font-size: var(--erd-fs-sm);
   cursor: pointer;
 }
 .erd-btn:hover {
   background: var(--erd-row-hover);
 }
 .erd-btn--danger {
-  color: #dc2626;
+  color: var(--erd-danger);
 }
 .erd-btn--danger:hover {
-  background: #fef2f2;
-}
-.dark .erd-btn--danger:hover {
-  background: #450a0a;
+  background: var(--erd-danger-soft);
 }
 .erd-icon-btn {
   display: inline-flex;
@@ -340,11 +416,11 @@ textarea.erd-input {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--erd-radius-chip);
   border: 0;
   background: transparent;
   color: var(--erd-node-muted);
-  font-size: 14px;
+  font-size: var(--erd-fs-lg);
   line-height: 1;
   cursor: pointer;
 }
@@ -353,71 +429,97 @@ textarea.erd-input {
   color: var(--erd-node-text);
 }
 
-/* React Flow chrome in dark mode follows its own colorMode; keep the minimap subtle */
-.react-flow__minimap {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
 /* ---- selection toolbar (multi-select) ---- */
 .erd-selection-bar {
   position: absolute;
-  bottom: 16px;
+  bottom: var(--erd-space-6);
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--erd-space-3);
   max-width: calc(100% - 32px);
-  padding: 6px 10px;
-  border: 1px solid var(--erd-panel-border);
-  border-radius: 10px;
+  padding: var(--erd-space-3) var(--erd-space-5);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
+  border-radius: var(--erd-radius-card);
   background: var(--erd-panel-bg);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.3);
-  font-size: 12px;
+  font-size: var(--erd-fs-md);
 }
-.erd-selection-bar__count { font-weight: 600; }
+.erd-selection-bar__count { font-weight: var(--erd-weight-medium); }
 .erd-selection-bar__label { color: var(--erd-node-muted); }
 .erd-selection-bar__sep {
-  width: 1px;
-  height: 18px;
-  margin: 0 2px;
-  background: var(--erd-panel-border);
+  width: var(--erd-hairline-width);
+  height: 16px;
+  margin: 0 var(--erd-space-1);
+  background: var(--erd-hairline-strong);
 }
 .erd-swatch {
   width: 16px;
   height: 16px;
-  border: 1px solid rgb(0 0 0 / 0.15);
-  border-radius: 4px;
+  border: var(--erd-hairline-width) solid var(--erd-hairline-strong);
+  border-radius: var(--erd-radius-pill);
   cursor: pointer;
 }
-.erd-swatch:hover { outline: 2px solid var(--erd-accent); outline-offset: 1px; }
+.erd-swatch:hover { outline: var(--erd-focus-width) solid var(--erd-focus); outline-offset: var(--erd-focus-offset); }
 .erd-swatch--none {
-  background: linear-gradient(135deg, transparent 45%, #ef4444 45%, #ef4444 55%, transparent 55%);
+  position: relative;
+  background: var(--erd-surface-2);
+}
+.erd-swatch--none::after {
+  content: "";
+  position: absolute;
+  inset: 50% 2px auto 2px;
+  height: var(--erd-hairline-width);
+  background: var(--erd-node-muted);
 }
 
 /* ---- minimap ---- */
-/* Unstyled it looked like a grey loading placeholder sitting on the canvas. */
-.erd-minimap {
-  border: 1px solid var(--erd-panel-border);
-  border-radius: 8px;
+.erd-minimap.react-flow__minimap {
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
+  border-radius: var(--erd-radius-control);
   background: var(--erd-panel-bg) !important;
-  box-shadow: 0 4px 14px -6px rgb(0 0 0 / 0.25);
   overflow: hidden;
 }
 .erd-minimap .react-flow__minimap-node { rx: 2; }
+.erd-minimap__wrap {
+  position: absolute;
+  right: var(--erd-space-5);
+  bottom: var(--erd-space-5);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--erd-space-2);
+}
+.erd-minimap__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--erd-space-2);
+  height: 24px;
+  padding: 0 var(--erd-space-3);
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
+  border-radius: var(--erd-radius-chip);
+  background: var(--erd-panel-bg);
+  color: var(--erd-node-muted);
+  font-size: var(--erd-fs-sm);
+  cursor: pointer;
+}
+.erd-minimap__toggle:hover {
+  color: var(--erd-node-text);
+  background: var(--erd-row-hover);
+}
 
 /* ---- multi-selection ---- */
 /* A thin ring alone was hard to track once several tables were picked, so a selected table also
    gets an accent wash and a check badge. */
 .erd-table--multi {
-  box-shadow: 0 0 0 3px var(--erd-accent), 0 6px 18px rgb(0 0 0 / 0.16);
+  border-color: var(--erd-accent);
+  box-shadow: 0 0 0 2px var(--erd-accent);
 }
 .erd-table--multi .erd-table__header {
-  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--erd-accent) 14%, transparent);
+  background: var(--erd-row-selected);
 }
 .erd-table__check {
   position: absolute;
@@ -429,25 +531,25 @@ textarea.erd-input {
   width: 18px;
   height: 18px;
   border: 2px solid var(--erd-node-bg);
-  border-radius: 999px;
+  border-radius: var(--erd-radius-pill);
   background: var(--erd-accent);
-  color: #fff;
+  color: var(--erd-on-accent);
 }
 .erd-selection-bar__names {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--erd-space-2);
   min-width: 0;
 }
 .erd-selection-chip {
   max-width: 120px;
-  padding: 1px 6px;
+  padding: 1px var(--erd-space-3);
   overflow: hidden;
-  border: 1px solid var(--erd-panel-border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--erd-accent) 10%, transparent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  border: var(--erd-hairline-width) solid var(--erd-panel-border);
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-surface-2);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: default;

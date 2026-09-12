@@ -1,0 +1,160 @@
+/**
+ * Design tokens — the single source of truth for every colour, radius, size and weight in the UI.
+ *
+ * Rules this file exists to enforce:
+ *   - No hardcoded hex anywhere else. Components reference these custom properties only.
+ *   - Every token is defined for both themes, so nothing has to be re-checked in dark mode.
+ *   - Red is reserved for validation errors. Table accents come from --erd-c-* instead.
+ *
+ * Names keep the historical `--erd-` prefix: it is the app's internal namespace and is referenced
+ * by canvas CSS, tests and DOM hooks, so it stays put even though the product is now DBridge.
+ */
+
+:root {
+  /* ---- surfaces ---- */
+  --erd-bg: #fafafa;              /* app background, behind every panel */
+  --erd-surface: #ffffff;         /* cards, panels, editors */
+  --erd-surface-2: #f4f4f5;       /* chips, subtle fills, hover */
+  --erd-surface-3: #e4e4e7;       /* pressed, stronger fill */
+  --erd-panel-bg: #ffffff;        /* floating canvas panels (opaque: no shadow to separate them) */
+
+  /* ---- text ---- */
+  --erd-text: #18181b;
+  --erd-text-muted: #71717a;      /* types, secondary labels, badges */
+  --erd-text-subtle: #a1a1aa;     /* line numbers, placeholders */
+  --erd-text-inverse: #ffffff;    /* on accent fills */
+  --erd-on-accent: #ffffff;       /* text on --erd-accent; 6.3:1 in light */
+
+  /* ---- lines ---- */
+  --erd-hairline: #e4e4e7;
+  --erd-hairline-strong: #d4d4d8;
+  --erd-hairline-width: 0.5px;
+
+  /* ---- accent (interaction, not decoration) ---- */
+  --erd-accent: #4f46e5;
+  --erd-accent-hover: #4338ca;
+  --erd-accent-soft: #eef2ff;     /* tinted chip background */
+  --erd-accent-text: #3730a3;     /* text on --erd-accent-soft, 8.2:1 */
+
+  /* ---- state: red is for errors only ---- */
+  --erd-danger: #dc2626;
+  --erd-danger-soft: #fef2f2;
+  --erd-danger-text: #991b1b;
+  --erd-warning: #d97706;
+  --erd-warning-soft: #fffbeb;
+  --erd-warning-text: #92400e;
+  --erd-success: #059669;
+
+  /* ---- table accent palette: six muted hues, legible on both themes ---- */
+  --erd-c-indigo: #6366f1;
+  --erd-c-teal: #14b8a6;
+  --erd-c-emerald: #10b981;
+  --erd-c-amber: #f59e0b;
+  --erd-c-violet: #a855f7;
+  --erd-c-slate: #64748b;
+
+  /* ---- canvas ---- */
+  --erd-node-bg: var(--erd-surface);
+  --erd-node-border: var(--erd-hairline-strong);
+  --erd-node-text: var(--erd-text);
+  --erd-node-muted: var(--erd-text-muted);
+  --erd-row-hover: var(--erd-surface-2);
+  --erd-row-selected: var(--erd-accent-soft);
+  --erd-panel-border: var(--erd-hairline);
+  --erd-edge: #a1a1aa;
+  --erd-edge-strong: var(--erd-accent);
+  --erd-dot: #d4d4d8;             /* canvas background dots */
+
+  /* ---- badges ---- */
+  --erd-badge-pk-bg: var(--erd-accent-soft);
+  --erd-badge-pk-fg: var(--erd-accent-text);
+  --erd-badge-fk-bg: var(--erd-surface-2);
+  --erd-badge-fk-fg: #52525b;     /* 7.0:1 on --erd-surface-2 */
+
+  /* Aliases used by the CodeMirror lint tooltip, which is portalled outside the canvas. */
+  --erd-chip: var(--erd-surface-2);
+  --erd-chip-hover: var(--erd-surface-3);
+
+  /* ---- radius ---- */
+  --erd-radius-card: 10px;
+  --erd-radius-control: 8px;
+  --erd-radius-chip: 4px;
+  --erd-radius-pill: 999px;
+
+  /* ---- spacing ---- */
+  --erd-space-1: 2px;
+  --erd-space-2: 4px;
+  --erd-space-3: 6px;
+  --erd-space-4: 8px;
+  --erd-space-5: 12px;
+  --erd-space-6: 16px;
+
+  /* ---- type ---- */
+  --erd-font-ui: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --erd-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --erd-fs-xs: 10px;
+  --erd-fs-sm: 11px;
+  --erd-fs-md: 12px;
+  --erd-fs-lg: 13px;
+  --erd-weight-normal: 400;
+  --erd-weight-medium: 500;       /* the heaviest weight in the product */
+  --erd-lh-code: 1.85;
+
+  /* ---- sizing ---- */
+  --erd-row-h: 22px;              /* one column in a table card */
+  --erd-control-h: 28px;
+  --erd-dot-size: 7px;            /* the table accent dot */
+
+  /* ---- focus: the only ring in the UI ---- */
+  --erd-focus: var(--erd-accent);
+  --erd-focus-width: 2px;
+  --erd-focus-offset: 1px;
+
+  /* ---- motion ---- */
+  --erd-transition: 0.15s ease;
+  --erd-dim: 0.2;                 /* unrelated edges/nodes while hovering */
+}
+
+:root.dark {
+  --erd-bg: #09090b;
+  --erd-surface: #18181b;
+  --erd-surface-2: #27272a;
+  --erd-surface-3: #3f3f46;
+  --erd-panel-bg: #18181b;
+
+  --erd-text: #fafafa;
+  --erd-text-muted: #a1a1aa;
+  --erd-text-subtle: #71717a;
+  /* The dark accent is a light indigo, so white on it fails contrast: flip to near-black (5.9:1). */
+  --erd-text-inverse: #18181b;
+  --erd-on-accent: #18181b;
+
+  --erd-hairline: #303036;
+  --erd-hairline-strong: #3f3f46;
+
+  --erd-accent: #818cf8;
+  --erd-accent-hover: #a5b4fc;
+  --erd-accent-soft: #312e81;
+  --erd-accent-text: #c7d2fe;     /* 7.4:1 on --erd-accent-soft */
+
+  --erd-danger: #f87171;
+  --erd-danger-soft: #450a0a;
+  --erd-danger-text: #fecaca;
+  --erd-warning: #fbbf24;
+  --erd-warning-soft: #422006;
+  --erd-warning-text: #fde68a;
+  --erd-success: #34d399;
+
+  /* Same hues, lifted so they hold their identity on a near-black ground. */
+  --erd-c-indigo: #818cf8;
+  --erd-c-teal: #2dd4bf;
+  --erd-c-emerald: #34d399;
+  --erd-c-amber: #fbbf24;
+  --erd-c-violet: #c084fc;
+  --erd-c-slate: #94a3b8;
+
+  --erd-edge: #71717a;
+  --erd-dot: #3f3f46;
+
+  --erd-badge-fk-fg: #d4d4d8;     /* 8.9:1 on --erd-surface-2 */
+}

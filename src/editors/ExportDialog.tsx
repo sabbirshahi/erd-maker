@@ -191,7 +191,7 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
           <ul data-testid="export-diagnostics" className="max-h-32 space-y-1 overflow-auto text-xs">
             {diagnostics.map((d) => (
               <li key={d.id} className={d.severity === 'error' ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}>
-                <span className="font-medium uppercase">{d.severity}</span>
+                <span className="font-medium">{d.severity}</span>
                 {d.lossy && <span className="ml-1 rounded bg-zinc-200 px-1 text-[10px] dark:bg-zinc-700">lossy</span>}
                 <span className="ml-2">{d.message}</span>
               </li>

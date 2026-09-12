@@ -82,7 +82,7 @@ export function ExamplesGallery({ open, onClose }: { open: boolean; onClose: () 
                 <ExampleThumb dbml={ex.dbml} className="h-24 w-full" />
               </div>
               <div className="flex flex-1 flex-col gap-0.5 p-3">
-                <div className="text-sm font-semibold">{ex.title}</div>
+                <div className="text-sm font-medium">{ex.title}</div>
                 <div className="text-xs text-zinc-500 dark:text-zinc-400">{ex.description}</div>
                 <div className="mt-auto pt-2 text-[11px] text-zinc-400">
                   {sk.tables.length} tables · {sk.refs.length} refs

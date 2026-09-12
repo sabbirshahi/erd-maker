@@ -37,7 +37,7 @@ export function Modal({ open, onClose, title, children, testId, widthClass = 'ma
         className={`flex max-h-[90vh] w-full ${widthClass} flex-col overflow-hidden rounded-lg bg-white shadow-xl dark:bg-zinc-900`}
       >
         <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-          <h2 className="text-sm font-semibold">{title}</h2>
+          <h2 className="text-sm font-medium">{title}</h2>
           <span className="flex-1" />
           <button
             type="button"

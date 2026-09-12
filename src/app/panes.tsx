@@ -9,10 +9,10 @@ export function Placeholder({ name, hint }: { name: string; hint?: string }) {
   return (
     <div
       data-testid={`placeholder-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-      className="flex h-full w-full flex-col items-center justify-center gap-1 p-6 text-center text-sm text-zinc-400"
+      className="erd-placeholder flex h-full w-full flex-col items-center justify-center gap-1 p-6 text-center"
     >
-      <div className="font-medium text-zinc-500 dark:text-zinc-400">{name}</div>
-      <div className="text-xs">{hint ?? 'This pane has not landed yet.'}</div>
+      <div>{name}</div>
+      <div>{hint ?? 'This pane has not landed yet.'}</div>
     </div>
   )
 }

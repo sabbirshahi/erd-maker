@@ -270,7 +270,7 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
                 }`}
               >
                 <div>
-                  <span className="font-medium uppercase">{d.severity}</span>
+                  <span className="font-medium">{d.severity}</span>
                   {d.line !== undefined && <span className="ml-1 text-zinc-500">line {d.line}{d.col !== undefined ? `:${d.col}` : ''}</span>}
                   <span className="ml-2">{d.message}</span>
                 </div>

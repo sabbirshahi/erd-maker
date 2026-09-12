@@ -40,9 +40,8 @@ export function countBySeverity(list: Diagnostic[]): Record<DiagnosticSeverity, 
 }
 
 function SeverityIcon({ severity }: { severity: DiagnosticSeverity }) {
-  const cls = severity === 'error' ? 'text-red-500' : severity === 'warning' ? 'text-amber-500' : 'text-sky-500'
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={clsx('shrink-0', cls)} aria-label={severity}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`shrink-0 erd-sev--${severity}`} aria-label={severity}>
       {severity === 'error' && (
         <>
           <circle cx="12" cy="12" r="9" />
@@ -81,10 +80,7 @@ function Message({ text }: { text: string }) {
     <>
       {parts.map((part, i) =>
         part.startsWith('`') && part.endsWith('`') && part.length > 1 ? (
-          <code
-            key={i}
-            className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"
-          >
+          <code key={i} className="erd-code-chip">
             {part.slice(1, -1)}
           </code>
         ) : (
@@ -143,8 +139,8 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
   }
 
   return (
-    <div className="flex h-full flex-col" data-testid="problems-panel">
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-zinc-200 px-2 py-1 text-xs dark:border-zinc-800">
+    <div className="erd-problems" data-testid="problems-panel">
+      <div className="erd-problems__filters">
         {ORDER.map((sev) => (
           <button
             key={sev}
@@ -152,35 +148,30 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
             data-testid={`filter-${sev}`}
             aria-pressed={enabled[sev]}
             onClick={() => setEnabled((e) => ({ ...e, [sev]: !e[sev] }))}
-            className={clsx(
-              'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 capitalize',
-              enabled[sev]
-                ? 'border-zinc-400 bg-zinc-100 text-zinc-800 dark:border-zinc-500 dark:bg-zinc-800 dark:text-zinc-100'
-                : 'border-zinc-200 text-zinc-400 dark:border-zinc-700',
-            )}
+            className="erd-chip-toggle"
           >
             <SeverityIcon severity={sev} /> {sev}s <span className="tabular-nums">{counts[sev]}</span>
           </button>
         ))}
-        <label className="ml-1 inline-flex items-center gap-1 border-l border-zinc-200 pl-3 text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+        <label className="erd-problems__lossy">
           <input type="checkbox" data-testid="filter-lossy" checked={lossyOnly} onChange={(e) => setLossyOnly(e.target.checked)} />
           lossy only
         </label>
       </div>
-      <div className="flex-1 overflow-auto">
+      <div className="erd-problems__body">
         {visible.length === 0 ? (
-          <div className="p-4 text-center text-xs text-zinc-400" data-testid="problems-empty">
+          <div className="erd-problems__empty" data-testid="problems-empty">
             {all.length === 0 ? 'No problems. Nice.' : 'Nothing matches the current filters.'}
           </div>
         ) : (
-          <div className="text-xs">
+          <div>
             {groups.map(([rule, rows]) => (
               <section key={rule} data-testid="problem-group" data-rule={rule}>
                 <button
                   type="button"
                   data-testid="problem-group-header"
                   onClick={() => setCollapsed((c) => ({ ...c, [rule]: !c[rule] }))}
-                  className="sticky top-0 z-10 flex w-full items-center gap-1.5 border-b border-zinc-200 bg-zinc-50 px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+                  className="erd-problems__group"
                 >
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={clsx('transition-transform', !collapsed[rule] && 'rotate-90')}>
                     <path d="m9 6 6 6-6 6" />
@@ -189,7 +180,7 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
                   <span className="tabular-nums opacity-70">{rows.length}</span>
                 </button>
                 {!collapsed[rule] && (
-                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  <ul className="erd-problems__rows">
                     {rows.map((d) => (
                       <li key={d.id}>
                         <button
@@ -201,16 +192,16 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
                             const view = SOURCE_VIEW[d.source]
                             if (view) onGoto?.(view)
                           }}
-                          className="flex w-full items-start gap-2 px-2 py-1.5 pl-6 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          className="erd-problems__row"
                         >
                           <SeverityIcon severity={d.severity} />
-                          <span className="flex-1 leading-relaxed text-zinc-800 dark:text-zinc-100">
+                          <span className="flex-1 leading-relaxed">
                             <Message text={d.message} />
                           </span>
                           {d.lossy && (
-                            <span className="shrink-0 rounded bg-sky-100 px-1 text-[10px] text-sky-700 dark:bg-sky-900 dark:text-sky-200">lossy</span>
+                            <span className="erd-problems__lossy-tag">lossy</span>
                           )}
-                          <span className="shrink-0 font-mono text-[11px] text-zinc-400">{location(d)}</span>
+                          <span className="erd-problems__where">{location(d)}</span>
                         </button>
                       </li>
                     ))}

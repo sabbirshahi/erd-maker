@@ -7,10 +7,8 @@
  */
 import { useSchemaStore } from '@/store'
 import { useCanvasUi } from './uiStore'
+import { TABLE_COLORS } from './palette'
 import type { CanvasActions } from './useCanvasActions'
-
-/** Same palette the inspector offers for a single table. */
-const COLORS = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed', '#db2777', '#475569']
 
 export interface SelectionToolbarProps {
   actions: CanvasActions
@@ -59,15 +57,15 @@ export function SelectionToolbar({ actions, onExportSelection }: SelectionToolba
 
       <span className="erd-selection-bar__sep" />
       <span className="erd-selection-bar__label">Colour</span>
-      {COLORS.map((c) => (
+      {TABLE_COLORS.map((c) => (
         <button
-          key={c}
+          key={c.hex}
           type="button"
-          title={`Colour ${c}`}
-          data-testid={`selection-color-${c.slice(1)}`}
-          onClick={() => setColor(c)}
+          title={c.label}
+          data-testid={`selection-color-${c.hex.slice(1)}`}
+          onClick={() => setColor(c.hex)}
           className="erd-swatch"
-          style={{ background: c }}
+          style={{ background: `var(${c.token})` }}
         />
       ))}
       <button type="button" title="No colour" data-testid="selection-color-none" onClick={() => setColor(undefined)} className="erd-swatch erd-swatch--none" />

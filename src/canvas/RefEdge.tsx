@@ -1,14 +1,17 @@
-import { memo } from 'react'
-import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react'
+import { memo, useMemo } from 'react'
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, useStore, type EdgeProps } from '@xyflow/react'
 import type { RefAction, RefKind } from '@/core/schema'
 import { useSchemaStore } from '@/store'
 import { REF_KINDS, refKindLabel, refKindName } from './connection'
 import { removeRef } from './mutations'
+import { freeChannelX, type Rect } from './routing'
 import { REF_ACTIONS } from './types'
 import type { RefEdgeType } from './types'
 
 function RefEdgeImpl({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -22,6 +25,26 @@ function RefEdgeImpl({
   const ref = useSchemaStore((s) => s.schema.refs.find((r) => r.id === id))
   const update = useSchemaStore((s) => s.update)
   const select = useSchemaStore((s) => s.select)
+
+  // Every other table is an obstacle; the two this edge connects are not, since it starts and
+  // ends on their borders by definition.
+  const obstacles = useStore((s) => {
+    const out: Rect[] = []
+    for (const n of s.nodeLookup.values()) {
+      if (n.id === source || n.id === target) continue
+      const w = n.measured?.width
+      const h = n.measured?.height
+      if (!w || !h) continue
+      out.push({ x: n.internals.positionAbsolute.x, y: n.internals.positionAbsolute.y, width: w, height: h })
+    }
+    return out
+  }, (a, b) => a.length === b.length && a.every((r, i) => r.x === b[i].x && r.y === b[i].y && r.width === b[i].width && r.height === b[i].height))
+
+  const centerX = useMemo(
+    () => freeChannelX(sourceX, sourceY, targetX, targetY, obstacles),
+    [sourceX, sourceY, targetX, targetY, obstacles],
+  )
+
   const [path, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -31,6 +54,7 @@ function RefEdgeImpl({
     targetPosition,
     borderRadius: 10,
     offset: 24,
+    ...(centerX === undefined ? {} : { centerX }),
   })
   if (!ref) return null
 

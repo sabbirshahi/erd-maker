@@ -55,7 +55,7 @@ async function seedBlogLike(page: Page) {
   })
   await expect(page.locator('.react-flow__node')).toHaveCount(3)
   await expect(page.locator('.react-flow__edge')).toHaveCount(1)
-  await page.getByTestId('tb-fit').click()
+  await page.getByTestId('zoom-fit').click()
   await page.waitForTimeout(400) // fitView animation
 }
 
@@ -226,10 +226,10 @@ test.describe('canvas', () => {
     await boot(page)
     await page.getByTestId('tb-add-table').click()
     await expect(page.getByTestId('table-node')).toHaveCount(1)
-    await page.getByTestId('tb-undo').click()
+    await page.getByTestId('btn-undo').click()
     await expect(page.getByTestId('table-node')).toHaveCount(0)
     await expect(tableNames(page)).resolves.toEqual([])
-    await page.getByTestId('tb-redo').click()
+    await page.getByTestId('btn-redo').click()
     await expect(page.getByTestId('table-node')).toHaveCount(1)
 
     // Typing a name is one undo step per edit session.
