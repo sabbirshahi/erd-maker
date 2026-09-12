@@ -12,6 +12,7 @@ import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng, exportCanvasSvg } from './exportPng'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
 import { ProjectMenu } from './ProjectMenu'
+import { backupFilename, buildBackup, restoreBackup, serializeBackup, BackupError } from './backup'
 import { CommandPalette } from './CommandPalette'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { getSession } from './session'
@@ -281,6 +282,28 @@ export function Shell() {
     }
   }
 
+  const restoreInput = useRef<HTMLInputElement>(null)
+  const downloadBackup = () => {
+    session.controller.save()
+    const backup = buildBackup()
+    downloadText(serializeBackup(backup), backupFilename(), 'application/json')
+    const n = backup.projects.length
+    toast(`Backed up ${n} ${n === 1 ? 'diagram' : 'diagrams'}`)
+  }
+  const restoreFromFile = async (file: File) => {
+    try {
+      const { imported, skipped } = restoreBackup(await file.text())
+      setActiveId((id) => id) // the menu re-reads the list on its next open
+      toast(
+        skipped > 0
+          ? `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported, ${skipped} unreadable`
+          : `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported`,
+      )
+    } catch (err) {
+      toast(err instanceof BackupError ? err.message : 'Could not read that backup file.', 'error')
+    }
+  }
+
   const showEmpty = tableCount === 0 && !blankDismissed
   const problemsCount = diagnostics.length
 
@@ -290,15 +313,7 @@ export function Shell() {
           quieter than the diagram's own name. */}
       <header className="erd-topbar" data-testid="topbar">
         <Logo />
-        <ProjectMenu
-          controller={session.controller}
-          activeId={activeId}
-          onActiveChange={setActiveId}
-          onExamples={() => setGallery(true)}
-          onImport={() => setImportOpen(true)}
-          onOpenJson={() => fileInput.current?.click()}
-          onShortcuts={() => setShortcuts(true)}
-        />
+        <ProjectMenu controller={session.controller} activeId={activeId} onActiveChange={setActiveId} />
         <input
           ref={fileInput}
           type="file"
@@ -308,6 +323,18 @@ export function Shell() {
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) void importJson(f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={restoreInput}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          data-testid="restore-backup-input"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void restoreFromFile(f)
             e.target.value = ''
           }}
         />
@@ -321,6 +348,27 @@ export function Shell() {
           </IconButton>
 
           <span className="erd-divider mx-1" />
+
+          <Menu
+            align="right"
+            testId="more-menu"
+            trigger={({ onClick }) => (
+              <IconButton label="More" data-testid="btn-more" onClick={onClick}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+              </IconButton>
+            )}
+            items={[
+              { id: 'more-start', label: <span className="erd-menu__section">Start from</span>, disabled: true, onSelect: () => {} },
+              { id: 'project-examples', label: 'Examples…', onSelect: () => setGallery(true) },
+              { id: 'project-import', label: 'Paste DBML or SQL…', onSelect: () => setImportOpen(true) },
+              { id: 'import-json', label: 'Open .json…', onSelect: () => fileInput.current?.click() },
+              { id: 'more-all', label: <span className="erd-menu__section erd-menu__section--border">All diagrams</span>, disabled: true, onSelect: () => {} },
+              { id: 'backup-download', label: 'Download backup…', onSelect: downloadBackup },
+              { id: 'backup-restore', label: 'Restore from backup…', onSelect: () => restoreInput.current?.click() },
+              { id: 'more-help', label: <span className="erd-menu__section erd-menu__section--border">Help</span>, disabled: true, onSelect: () => {} },
+              { id: 'shortcuts', label: 'Keyboard shortcuts', hint: '?', onSelect: () => setShortcuts(true) },
+            ]}
+          />
 
           <IconButton label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} data-testid="btn-theme" onClick={toggleTheme}>
             {theme === 'dark' ? (

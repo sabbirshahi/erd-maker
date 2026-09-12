@@ -183,7 +183,7 @@
   position: absolute;
   z-index: 40;
   margin-top: var(--erd-space-2);
-  min-width: 13rem;
+  min-width: 15.5rem;
   overflow: hidden;
   padding: var(--erd-space-2) 0;
   border: var(--erd-hairline-width) solid var(--erd-hairline);
@@ -211,12 +211,14 @@
 .erd-menuitem__hint { color: var(--erd-text-subtle); font-size: var(--erd-fs-sm); }
 .erd-menu__section {
   display: block;
-  padding: var(--erd-space-4) var(--erd-space-5) var(--erd-space-2);
+  padding: var(--erd-space-2) 0 0;
   color: var(--erd-text-subtle);
   font-size: var(--erd-fs-sm);
   font-weight: var(--erd-weight-normal);
 }
-.erd-menu__section--border {
+/* The rule belongs to the row, not to the label: the label span is only as wide as its text, so a
+   border on it stops short of the menu's edges. */
+.erd-menuitem:has(.erd-menu__section--border) {
   margin-top: var(--erd-space-2);
   border-top: var(--erd-hairline-width) solid var(--erd-hairline);
 }
@@ -545,7 +547,13 @@
 }
 
 /* ---- shortcuts dialog ---- */
-.erd-shortcuts { display: flex; flex-direction: column; gap: var(--erd-space-6); }
+.erd-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--erd-space-6);
+  /* Modal renders children flush; every dialog supplies its own padding. */
+  padding: var(--erd-space-6);
+}
 .erd-shortcuts__title {
   margin: 0 0 var(--erd-space-4);
   color: var(--erd-text-muted);

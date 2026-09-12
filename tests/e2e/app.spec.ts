@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openExamples } from './helpers'
+import { openExamples, openMoreMenu } from './helpers'
 
 const URL = '/?e2e'
 
@@ -192,7 +192,7 @@ test.describe('workspace backup', () => {
     const before = await page.evaluate(() => window.__erd!.store.getState().schema.tables.length)
     expect(before).toBeGreaterThan(0)
 
-    await page.getByTestId('btn-project').click()
+    await openMoreMenu(page)
     const download = await Promise.all([
       page.waitForEvent('download'),
       page.getByTestId('menu-backup-download').click(),
@@ -204,7 +204,7 @@ test.describe('workspace backup', () => {
     )
 
     // Restoring the same file adds copies; the originals stay put.
-    await page.getByTestId('btn-project').click()
+    await openMoreMenu(page)
     await page.getByTestId('menu-backup-restore').click()
     await page.getByTestId('restore-backup-input').setInputFiles(file)
     await expect(toastWith(page, 'imported')).toBeVisible()
@@ -219,7 +219,7 @@ test.describe('workspace backup', () => {
 
   test('a file that is not a backup is refused with a reason', async ({ page }) => {
     await page.goto(URL)
-    await page.getByTestId('btn-project').click()
+    await openMoreMenu(page)
     await page.getByTestId('menu-backup-restore').click()
     await page.getByTestId('restore-backup-input').setInputFiles({
       name: 'notes.json',
@@ -251,7 +251,7 @@ test.describe('shortcuts help', () => {
 
   test('the list is also reachable from the menu', async ({ page }) => {
     await page.goto(URL)
-    await page.getByTestId('btn-project').click()
+    await openMoreMenu(page)
     await page.getByTestId('menu-shortcuts').click()
     await expect(page.getByTestId('shortcuts-dialog')).toContainText('Add a table')
   })

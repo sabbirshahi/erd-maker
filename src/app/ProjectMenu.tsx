@@ -1,6 +1,9 @@
 /**
  * The diagram's name in the top bar: switcher, rename, and the autosave indicator.
  *
+ * Only diagram actions belong here. Examples, import, backup and help sit in the header's overflow
+ * menu instead — mixing them in made the name look like a settings drawer.
+ *
  * There is no Save button. Edits autosave into the active project after a short idle, so the bar
  * reports when that last happened ("Saved 2m ago") instead of asking the user to do it. Ctrl+S
  * still forces an immediate write, and the label itself becomes the way out of a save conflict.
@@ -19,8 +22,6 @@ import {
   renameProject,
   type ProjectMeta,
 } from './projects'
-import { backupFilename, buildBackup, restoreBackup, serializeBackup, BackupError } from './backup'
-import { downloadText } from './exportPng'
 import { setTabProject } from './session'
 import type { SaveController, SaveStatus } from './saveController'
 
@@ -87,18 +88,12 @@ export interface ProjectMenuProps {
   controller: SaveController
   activeId: string
   onActiveChange: (id: string) => void
-  /** Ways to start a diagram. They live here rather than in the bar, which is for the current one. */
-  onExamples: () => void
-  onImport: () => void
-  onOpenJson: () => void
-  onShortcuts: () => void
 }
 
-export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, onImport, onOpenJson, onShortcuts }: ProjectMenuProps) {
+export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMenuProps) {
   const [projects, setProjects] = useState<ProjectMeta[]>(() => listProjects())
   const [renaming, setRenaming] = useState(false)
   const renameInput = useRef<HTMLInputElement>(null)
-  const restoreInput = useRef<HTMLInputElement>(null)
 
   // The controller is an external store; subscribing to it directly keeps the label in step
   // without mirroring its state into this component.
@@ -197,31 +192,6 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
     [active, activeId, refresh],
   )
 
-  const downloadBackup = useCallback(() => {
-    controller.save()
-    const backup = buildBackup()
-    downloadText(serializeBackup(backup), backupFilename(), 'application/json')
-    const n = backup.projects.length
-    toast(`Backed up ${n} ${n === 1 ? 'diagram' : 'diagrams'}`)
-  }, [controller])
-
-  const restoreFromFile = useCallback(
-    async (file: File) => {
-      try {
-        const { imported, skipped } = restoreBackup(await file.text())
-        refresh()
-        toast(
-          skipped > 0
-            ? `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported, ${skipped} unreadable`
-            : `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported`,
-        )
-      } catch (err) {
-        toast(err instanceof BackupError ? err.message : 'Could not read that backup file.', 'error')
-      }
-    },
-    [refresh],
-  )
-
   /**
    * The status label is also the escape hatch. With no Save button, a failed or conflicting save
    * would otherwise be a dead end, so clicking the label retries it.
@@ -242,18 +212,6 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
 
   return (
     <div className="flex min-w-0 items-center gap-2" data-testid="project-bar">
-      <input
-        ref={restoreInput}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        data-testid="restore-backup-input"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) void restoreFromFile(f)
-          e.target.value = ''
-        }}
-      />
       {renaming ? (
         <input
           ref={renameInput}
@@ -305,15 +263,6 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
             { id: 'project-rename', label: <Action icon="pencil">Rename…</Action>, onSelect: () => setRenaming(true) },
             { id: 'project-duplicate', label: <Action icon="copy">Duplicate</Action>, onSelect: duplicate },
             { id: 'project-delete', label: <Action icon="trash" danger>Delete…</Action>, onSelect: remove },
-            { id: 'hdr-start', label: <SectionLabel border>Start from</SectionLabel>, disabled: true, onSelect: () => {} },
-            { id: 'project-examples', label: <Action icon="grid">Examples…</Action>, onSelect: onExamples },
-            { id: 'project-import', label: <Action icon="download">Paste DBML, SQL or models.py…</Action>, onSelect: onImport },
-            { id: 'import-json', label: <Action icon="download">Open .json…</Action>, onSelect: onOpenJson },
-            { id: 'hdr-backup', label: <SectionLabel border>All diagrams</SectionLabel>, disabled: true, onSelect: () => {} },
-            { id: 'backup-download', label: <Action icon="archive">Download backup…</Action>, hint: `${projects.length}`, onSelect: downloadBackup },
-            { id: 'backup-restore', label: <Action icon="upload">Restore from backup…</Action>, onSelect: () => restoreInput.current?.click() },
-            { id: 'hdr-help', label: <SectionLabel border>Help</SectionLabel>, disabled: true, onSelect: () => {} },
-            { id: 'shortcuts', label: <Action icon="keyboard">Keyboard shortcuts</Action>, hint: '?', onSelect: onShortcuts },
           ]}
         />
       )}
