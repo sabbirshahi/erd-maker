@@ -49,6 +49,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
   {
     title: 'App',
     items: [
+      { keys: ['mod', 'K'], description: 'Find a table or column' },
       { keys: ['mod', 'S'], description: 'Save now (edits autosave anyway)' },
       { keys: ['?'], description: 'Show this list' },
       { keys: ['Escape'], description: 'Close a dialog' },

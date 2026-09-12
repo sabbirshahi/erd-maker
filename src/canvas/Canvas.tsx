@@ -26,6 +26,7 @@ import { buildRef, validateConnection } from './connection'
 import { canvasDiagnostics } from './diagnostics'
 import { handleId } from './handles'
 import { computeHighlight } from './highlight'
+import { FOCUS_TABLE_EVENT, type FocusTableDetail } from '@/app/canvasEvents'
 import { CollapsibleMiniMap, ZoomPill } from './Controls'
 import { useTokens } from './tokens'
 import { Inspector } from './Inspector'
@@ -94,6 +95,17 @@ function CanvasInner() {
   useEffect(() => {
     if (!window.__erd) window.__erd = { store: useSchemaStore }
   }, [])
+
+  // The command palette lives in the shell, which has no handle on React Flow, so it asks for a
+  // jump through the same kind of window event the editors already use for erd:goto.
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const { tableId } = (e as CustomEvent<FocusTableDetail>).detail
+      actions.focusTable(tableId)
+    }
+    window.addEventListener(FOCUS_TABLE_EVENT, onFocus)
+    return () => window.removeEventListener(FOCUS_TABLE_EVENT, onFocus)
+  }, [actions])
 
   // Canvas diagnostics follow the schema.
   useEffect(() => {

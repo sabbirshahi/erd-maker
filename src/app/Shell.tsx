@@ -11,6 +11,7 @@ import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng, exportCanvasSvg } from './exportPng'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
 import { ProjectMenu } from './ProjectMenu'
+import { CommandPalette } from './CommandPalette'
 import { ShortcutsDialog } from './ShortcutsDialog'
 import { getSession } from './session'
 import { startCrossTabSync } from './crossTab'
@@ -153,6 +154,7 @@ export function Shell() {
 
   const [gallery, setGallery] = useState(false)
   const [shortcuts, setShortcuts] = useState(false)
+  const [palette, setPalette] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exportSelectionOnly, setExportSelectionOnly] = useState(false)
@@ -196,6 +198,12 @@ export function Shell() {
         return
       }
       if (!mod) return
+      // Cmd/Ctrl+K opens the finder, but inside CodeMirror it belongs to the editor.
+      if (e.key.toLowerCase() === 'k' && !isEditableTarget(e.target)) {
+        e.preventDefault()
+        setPalette((o) => !o)
+        return
+      }
       // Ctrl+S saves from anywhere, including while typing in an editor.
       if (e.key.toLowerCase() === 's') {
         e.preventDefault()
@@ -440,6 +448,7 @@ export function Shell() {
 
       <ExamplesGallery open={gallery} onClose={() => setGallery(false)} />
       <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} />
       <Pane name="Import dialog">
         <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       </Pane>

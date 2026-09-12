@@ -286,3 +286,51 @@ test.describe('SVG export', () => {
     await expect(toastWith(page, 'Exported SVG')).toBeVisible()
   })
 })
+
+test.describe('command palette', () => {
+  test('finds a table on the largest example and centres the canvas on it', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    // The SaaS example is the biggest one bundled, which is where this feature earns its place.
+    await page.getByTestId('example-saas_multitenant').click()
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByTestId('command-palette')).toBeVisible()
+
+    await page.getByTestId('palette-input').fill('sub')
+    const first = page.getByTestId('palette-result').first()
+    await expect(first).toBeVisible()
+    await page.keyboard.press('Enter')
+
+    await expect(page.getByTestId('command-palette')).toBeHidden()
+    // Enter selects the table it found.
+    const selected = await page.evaluate(() => window.__erd!.store.getState().selection.tableId)
+    expect(selected).toBeTruthy()
+    const name = await page.evaluate(
+      (id) => window.__erd!.store.getState().schema.tables.find((t) => t.id === id)?.name,
+      selected,
+    )
+    expect(name).toContain('sub')
+  })
+
+  test('a column hit says which table it is in', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await page.keyboard.press('ControlOrMeta+k')
+    await page.getByTestId('palette-input').fill('email')
+    const column = page.getByTestId('palette-result').filter({ hasText: 'in ' }).first()
+    await expect(column).toContainText('email')
+    await expect(column).toContainText('in ')
+  })
+
+  test('does not hijack Cmd+K inside the DBML editor', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await page.locator('[data-language="dbml"]').click()
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByTestId('command-palette')).toBeHidden()
+  })
+})

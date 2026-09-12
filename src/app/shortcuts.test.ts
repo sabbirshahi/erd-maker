@@ -39,9 +39,10 @@ describe('shortcuts', () => {
     expect(shell).toMatch(/e\.key\.toLowerCase\(\) === 'z'/)
     expect(shell).toMatch(/e\.key\.toLowerCase\(\) === 'y'/)
     expect(shell).toContain("e.key === '?'")
+    expect(shell).toMatch(/e\.key\.toLowerCase\(\) === 'k'/)
 
     const listed = SHORTCUTS.flatMap((g) => g.items.map((s) => s.keys.join('+')))
-    for (const expected of ['mod+Shift+T', 'mod+A', 'Delete', 'F2', 'Escape', 'mod+C', 'mod+X', 'mod+V', 'mod+D', 'mod+Z', 'mod+Shift+Z', 'mod+Y', 'mod+S', '?']) {
+    for (const expected of ['mod+Shift+T', 'mod+A', 'Delete', 'F2', 'Escape', 'mod+C', 'mod+X', 'mod+V', 'mod+D', 'mod+Z', 'mod+Shift+Z', 'mod+Y', 'mod+S', 'mod+K', '?']) {
       expect(listed).toContain(expected)
     }
   })
