@@ -9,8 +9,9 @@ import type { CanvasActions } from './useCanvasActions'
 export const isEditableTarget = (el: EventTarget | null): boolean =>
   el instanceof Element && el.closest('input, textarea, select, [contenteditable="true"], .cm-editor') !== null
 
-export function useShortcuts(actions: CanvasActions, root: React.RefObject<HTMLElement | null>) {
+export function useShortcuts(actions: CanvasActions, root: React.RefObject<HTMLElement | null>, disabled = false) {
   useEffect(() => {
+    if (disabled) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return
       const target = e.target
@@ -63,5 +64,5 @@ export function useShortcuts(actions: CanvasActions, root: React.RefObject<HTMLE
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [actions, root])
+  }, [actions, root, disabled])
 }

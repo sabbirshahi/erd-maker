@@ -70,7 +70,7 @@ function markersFor(kind: RefKind, color: string): { markerStart?: EdgeMarker; m
   }
 }
 
-function CanvasInner() {
+function CanvasInner({ readOnly = false }: { readOnly?: boolean }) {
   const schema = useSchemaStore((s) => s.schema)
   const layout = useSchemaStore((s) => s.layout)
   const selection = useSchemaStore((s) => s.selection)
@@ -89,7 +89,8 @@ function CanvasInner() {
   const [measured, setMeasured] = useState<Record<string, Size>>({})
   const [dragPos, setDragPos] = useState<Record<string, XYPosition>>({})
   const { actions, busy } = useCanvasActions(measured)
-  useShortcuts(actions, rootRef)
+  // Embed mode is a picture of a diagram, not an editor: no key bindings that mutate the schema.
+  useShortcuts(actions, rootRef, readOnly)
 
   // Test hook (the shell sets the same object in main.tsx when ?e2e is present).
   useEffect(() => {
@@ -330,17 +331,24 @@ function CanvasInner() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         isValidConnection={isValidConnection}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        elementsSelectable={!readOnly}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={28}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
         onEdgeMouseEnter={onEdgeMouseEnter}
         onEdgeMouseLeave={onEdgeMouseLeave}
-        onNodeDoubleClick={onNodeDoubleClick}
-        onEdgeDoubleClick={(_, e) => {
-          useSchemaStore.getState().select({ refId: e.id })
-          useCanvasUi.getState().setInspectorOpen(true)
-        }}
+        onNodeDoubleClick={readOnly ? undefined : onNodeDoubleClick}
+        onEdgeDoubleClick={
+          readOnly
+            ? undefined
+            : (_, e) => {
+                useSchemaStore.getState().select({ refId: e.id })
+                useCanvasUi.getState().setInspectorOpen(true)
+              }
+        }
         onPaneClick={onPaneClick}
         deleteKeyCode={null}
         // Shift+drag draws a selection box; Ctrl/Cmd+click adds or removes one table.
@@ -359,23 +367,32 @@ function CanvasInner() {
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color={token['--erd-dot']} />
         <ZoomPill onFit={actions.fitView} />
-        <Toolbar actions={actions} busy={busy} />
+        {!readOnly && <Toolbar actions={actions} busy={busy} />}
       </ReactFlow>
       {schema.tables.length >= 6 && <CollapsibleMiniMap schema={schema} colorMode={colorMode} />}
-      <Inspector />
-      <SelectionToolbar
-        actions={actions}
-        onExportSelection={() => window.dispatchEvent(new CustomEvent('erd:export-selection'))}
-      />
+      {!readOnly && (
+        <>
+          <Inspector />
+          <SelectionToolbar
+            actions={actions}
+            onExportSelection={() => window.dispatchEvent(new CustomEvent('erd:export-selection'))}
+          />
+        </>
+      )}
     </div>
   )
 }
 
-/** Full-size ERD canvas bound to the schema store. Needs a sized parent. */
-export function Canvas() {
+/**
+ * Full-size ERD canvas bound to the schema store. Needs a sized parent.
+ *
+ * `readOnly` is what embed mode renders: pan, zoom and hover still work, but nothing can be moved,
+ * connected or edited.
+ */
+export function Canvas({ readOnly = false }: { readOnly?: boolean } = {}) {
   return (
     <ReactFlowProvider>
-      <CanvasInner />
+      <CanvasInner readOnly={readOnly} />
     </ReactFlowProvider>
   )
 }

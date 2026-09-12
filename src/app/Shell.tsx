@@ -6,6 +6,7 @@ import { clsx } from 'clsx'
 import './shell.css'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSchemaStore, useAllDiagnostics, undo, redo, type TextView } from '@/store'
+import { isEmbed } from './embed'
 import { EmptyState } from './EmptyState'
 import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng, exportCanvasSvg } from './exportPng'
@@ -43,6 +44,9 @@ function readPrefs(): UiPrefs {
   }
 }
 function writePrefs(p: UiPrefs) {
+  // Defence in depth: the shell does not render in embed mode, but no write path should depend on
+  // that staying true.
+  if (isEmbed()) return
   try {
     localStorage.setItem(UI_KEY, JSON.stringify(p))
   } catch {

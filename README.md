@@ -7,6 +7,19 @@ SQLite in the browser (Pyodide) so you can seed fake data and run SQL / ORM quer
 No backend. No accounts. Your work autosaves to `localStorage`, and **Share** puts the whole document in
 the URL.
 
+## Embedding
+
+Add `?embed=1` to render the canvas alone — read-only, no top bar, no code panes, no problems
+panel. Combine it with a share link to embed one specific diagram:
+
+```html
+<iframe src="https://your-deployment/?embed=1#d=…" width="100%" height="480" style="border:0"></iframe>
+```
+
+An embed writes **nothing** to the visitor's browser: no autosave, no project index, no theme, no
+session key. That is enforced in the persistence layer rather than by hiding the buttons, so a
+diagram on your blog can never touch a reader's own saved diagrams.
+
 ## Privacy
 
 Your schema never leaves your browser. Diagrams are stored only in `localStorage`, and a share link

@@ -642,3 +642,20 @@
   color: var(--erd-text-muted);
   font-size: var(--erd-fs-md);
 }
+
+/* ---- embed ---- */
+.erd-embed { position: relative; height: 100%; background: var(--erd-bg); }
+.erd-embed__mark {
+  position: absolute;
+  right: var(--erd-space-5);
+  top: var(--erd-space-5);
+  z-index: 5;
+  padding: var(--erd-space-2) var(--erd-space-4);
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-panel-bg);
+  color: var(--erd-text-muted);
+  font-size: var(--erd-fs-sm);
+  text-decoration: none;
+}
+.erd-embed__mark:hover { color: var(--erd-text); }

@@ -6,6 +6,7 @@
  * and reports the result, so "saved" is something the user can see rather than assume.
  */
 import type { useSchemaStore } from '@/store'
+import { isEmbed } from './embed'
 import { readProject, writeProject, type ProjectState } from './projects'
 
 export const AUTOSAVE_DEBOUNCE_MS = 800
@@ -47,7 +48,9 @@ export function createSaveController(
   armed = true,
 ): SaveController {
   let id = projectId
-  let active = armed
+  // Embed mode never arms, and setProject cannot re-arm it: nothing an embedded diagram does may
+  // reach the visitor's storage.
+  let active = armed && !isEmbed()
   /**
    * Revision of the document this tab last read or wrote. Saving compares it with what is in
    * storage: if another tab wrote in between, this tab's save would silently discard that work,
@@ -124,7 +127,7 @@ export function createSaveController(
       // Persist the outgoing project before following the switch.
       if (timer) save()
       id = next
-      active = true
+      active = !isEmbed()
       last = store.getState()
       base = readProject(next, storage)?.rev ?? null
       status = 'saved'

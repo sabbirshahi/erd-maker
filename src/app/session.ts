@@ -3,6 +3,7 @@
  * save controller that the top bar drives. One instance per page.
  */
 import { useSchemaStore } from '@/store'
+import { isEmbed } from './embed'
 import { ensureProjects, listProjects, readProject, writeProject } from './projects'
 import { createSaveController, type SaveController } from './saveController'
 
@@ -31,6 +32,7 @@ export function projectFromUrl(search = location.search): string | null {
 
 /** Put `id` in the address bar without adding a history entry for every switch. */
 export function setProjectUrl(id: string): void {
+  if (isEmbed()) return
   try {
     const url = new URL(location.href)
     if (url.searchParams.get(PROJECT_PARAM) === id) return
@@ -51,7 +53,7 @@ export function getTabProject(): string | null {
 
 export function setTabProject(id: string): void {
   try {
-    sessionStorage.setItem(TAB_KEY, id)
+    if (!isEmbed()) sessionStorage.setItem(TAB_KEY, id)
   } catch {
     /* private mode: the tab just resolves its project again on the next load */
   }
@@ -66,8 +68,22 @@ let session: Session | null = null
  */
 export function bootSession(restored = false): Session {
   if (session) return session
-  const meta = ensureProjects()
   const store = useSchemaStore.getState()
+
+  // Embed mode reads; it never creates a project and never arms autosave. ensureProjects() would
+  // write an index into the visitor's browser just by being called, so it is skipped entirely.
+  if (isEmbed()) {
+    const urlId = projectFromUrl()
+    const doc = !restored && urlId ? readProject(urlId) : null
+    if (doc) store.load({ schema: doc.schema, layout: doc.layout, dbmlText: doc.dbmlText ?? undefined })
+    session = {
+      activeId: urlId ?? '',
+      controller: createSaveController(useSchemaStore, urlId ?? '', localStorage, undefined, false),
+    }
+    return session
+  }
+
+  const meta = ensureProjects()
 
   if (restored) {
     // A shared diagram was opened: keep it and save it into the active project.

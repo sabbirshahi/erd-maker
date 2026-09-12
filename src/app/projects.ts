@@ -11,6 +11,7 @@
  */
 import { nanoid } from 'nanoid'
 import type { Layout, Schema } from '@/core/schema'
+import { isEmbed } from './embed'
 import { DOC_KEY, migrateDoc, serializeDoc, type SavedDoc } from './persistence'
 
 export const INDEX_KEY = 'dbridge:projects:v1'
@@ -51,6 +52,9 @@ function read<T>(storage: Storage, key: string): T | null {
 }
 
 function write(storage: Storage, key: string, value: unknown): boolean {
+  // An embedded diagram must not leave anything in the visitor's browser. Guarded here rather than
+  // at the call sites so a new caller cannot forget.
+  if (isEmbed()) return false
   try {
     storage.setItem(key, JSON.stringify(value))
     return true
@@ -149,7 +153,7 @@ export function deleteProject(id: string, storage: Storage = localStorage): stri
   if (index.activeId === id) index.activeId = index.projects[Math.max(0, at - 1)]?.id ?? null
   writeIndex(index, storage)
   try {
-    storage.removeItem(projectKey(id))
+    if (!isEmbed()) storage.removeItem(projectKey(id))
   } catch {
     /* ignore */
   }
@@ -180,6 +184,7 @@ const LEGACY_PREFIX = 'erd-maker:'
  */
 export function migrateLegacyKeys(storage: Storage = localStorage): number {
   let copied = 0
+  if (isEmbed()) return 0
   try {
     const legacy: string[] = []
     for (let i = 0; i < storage.length; i++) {

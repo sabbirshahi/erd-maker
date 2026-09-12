@@ -334,3 +334,63 @@ test.describe('command palette', () => {
     await expect(page.getByTestId('command-palette')).toBeHidden()
   })
 })
+
+test.describe('embed mode', () => {
+  test('renders only the canvas, read-only, and writes nothing to localStorage', async ({ page }) => {
+    // Build a share link from a real diagram, then open it the way an embedded page would.
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node')).toHaveCount(4)
+    // Share copies the link, which is how a user would get one to embed.
+    await page.getByTestId('btn-share').click()
+    await expect(toastWith(page, 'Share link copied')).toBeVisible()
+    const shareUrl = await page.evaluate(() => navigator.clipboard.readText())
+
+    // NB: `URL` is shadowed by this file's own constant, so the hash is taken by hand.
+    const hash = shareUrl.slice(shareUrl.indexOf('#'))
+    expect(hash).toMatch(/^#d=/)
+
+    // A fresh browser profile: the embed must leave it exactly as it found it.
+    const fresh = await page.context().browser()!.newContext()
+    const embed = await fresh.newPage()
+    await embed.goto(`/?e2e&embed=1${hash}`)
+
+    await expect(embed.getByTestId('embed-view')).toBeVisible()
+    await expect(embed.getByTestId('table-node')).toHaveCount(4)
+
+    // No shell anywhere.
+    await expect(embed.getByTestId('topbar')).toHaveCount(0)
+    await expect(embed.getByTestId('right-pane')).toHaveCount(0)
+    await expect(embed.getByTestId('problems-footer')).toHaveCount(0)
+    await expect(embed.getByTestId('canvas-toolbar')).toHaveCount(0)
+
+    // Read-only: dragging a table pans the view instead of moving the table, so the check is on
+    // the stored layout rather than where the node happens to sit on screen.
+    const layoutBefore = await embed.evaluate(() => JSON.stringify(window.__erd!.store.getState().layout))
+    const node = embed.locator('.react-flow__node').first()
+    const box = (await node.boundingBox())!
+    await node.hover()
+    await embed.mouse.down()
+    await embed.mouse.move(box.x + 160, box.y + 120, { steps: 8 })
+    await embed.mouse.up()
+    const layoutAfter = await embed.evaluate(() => JSON.stringify(window.__erd!.store.getState().layout))
+    expect(layoutAfter).toBe(layoutBefore)
+
+    // The whole point: nothing of ours in the visitor's storage.
+    const stored = await embed.evaluate(() => ({
+      local: Object.keys(localStorage),
+      session: Object.keys(sessionStorage),
+    }))
+    expect(stored.local).toEqual([])
+    expect(stored.session).toEqual([])
+
+    await fresh.close()
+  })
+
+  test('embed=0 is still the full app', async ({ page }) => {
+    await page.goto('/?e2e&embed=0')
+    await expect(page.getByTestId('topbar')).toBeVisible()
+    await expect(page.getByTestId('embed-view')).toHaveCount(0)
+  })
+})

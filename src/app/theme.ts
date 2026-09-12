@@ -1,5 +1,6 @@
 /** Dark mode — class strategy on <html>, persisted in localStorage. */
 import { useEffect, useState } from 'react'
+import { isEmbed } from './embed'
 
 export type Theme = 'light' | 'dark'
 export const THEME_KEY = 'dbridge:theme'
@@ -30,7 +31,7 @@ export function getTheme(): Theme {
 export function applyTheme(theme: Theme, persist = true) {
   document.documentElement.classList.toggle('dark', theme === 'dark')
   document.documentElement.style.colorScheme = theme
-  if (persist) {
+  if (persist && !isEmbed()) {
     try {
       localStorage.setItem(THEME_KEY, theme)
     } catch {
