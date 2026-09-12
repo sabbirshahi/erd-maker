@@ -41,9 +41,8 @@ export function createSaveController(
   storage: Storage = localStorage,
   debounceMs = AUTOSAVE_DEBOUNCE_MS,
   /**
-   * Start paused. At boot the store is empty until the user picks a project in the launcher;
-   * autosaving that empty state would overwrite whichever project was last active. `setProject`
-   * arms the controller.
+   * Start paused, for a controller created before its project's document is in the store:
+   * autosaving that empty state would overwrite the project. `setProject` arms it.
    */
   armed = true,
 ): SaveController {

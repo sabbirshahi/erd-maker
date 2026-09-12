@@ -4,8 +4,6 @@ const URL = '/?e2e=1'
 
 async function bootNewProject(page: Page) {
   await page.goto(URL)
-  const launcher = page.getByTestId('project-launcher')
-  if (await launcher.isVisible().catch(() => false)) await page.getByTestId('launcher-new').click()
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 

@@ -10,7 +10,6 @@ import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng } from './exportPng'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
 import { ProjectMenu } from './ProjectMenu'
-import { ProjectLauncher } from './ProjectLauncher'
 import { getSession } from './session'
 import { startCrossTabSync } from './crossTab'
 import { ProblemsPanel, countBySeverity } from './ProblemsPanel'
@@ -101,7 +100,6 @@ export function Shell() {
   const [exportSelectionOnly, setExportSelectionOnly] = useState(false)
   const session = getSession()
   const [activeId, setActiveId] = useState(session.activeId)
-  const [launcherOpen, setLauncherOpen] = useState(session.needsLauncher)
   const [theme, toggleTheme] = useTheme()
 
   const diagnostics = useAllDiagnostics()
@@ -198,16 +196,6 @@ export function Shell() {
 
   return (
     <div className="flex h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100" data-testid="shell">
-      {launcherOpen && (
-        <ProjectLauncher
-          controller={session.controller}
-          onOpen={(id) => {
-            setActiveId(id)
-            setLauncherOpen(false)
-          }}
-          onBrowseExamples={() => setGallery(true)}
-        />
-      )}
       {/* Top bar */}
       <header className="flex h-12 shrink-0 items-center gap-1 border-b border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-900" data-testid="topbar">
         <Logo />

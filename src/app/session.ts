@@ -9,11 +9,6 @@ import { createSaveController, type SaveController } from './saveController'
 export interface Session {
   activeId: string
   controller: SaveController
-  /**
-   * True when the app opened on its own URL and should ask which diagram to work on. A share link
-   * carries its own diagram, so it opens straight into the canvas.
-   */
-  needsLauncher: boolean
 }
 
 /**
@@ -58,7 +53,7 @@ export function setTabProject(id: string): void {
   try {
     sessionStorage.setItem(TAB_KEY, id)
   } catch {
-    /* private mode: the tab simply falls back to asking again next time */
+    /* private mode: the tab just resolves its project again on the next load */
   }
   setProjectUrl(id)
 }
@@ -81,7 +76,6 @@ export function bootSession(restored = false): Session {
     session = {
       activeId: meta.id,
       controller: createSaveController(useSchemaStore, meta.id),
-      needsLauncher: false,
     }
     return session
   }
@@ -93,37 +87,28 @@ export function bootSession(restored = false): Session {
   if (urlId && urlDoc) {
     setTabProject(urlId)
     store.load({ schema: urlDoc.schema, layout: urlDoc.layout, dbmlText: urlDoc.dbmlText ?? undefined })
-    session = { activeId: urlId, controller: createSaveController(useSchemaStore, urlId), needsLauncher: false }
+    session = { activeId: urlId, controller: createSaveController(useSchemaStore, urlId) }
     return session
   }
 
-  // This tab already chose a project (sessionStorage survives a reload): reopen it rather than
-  // asking again. Only a tab that has never chosen one sees the launcher.
+  // This tab already has a project (sessionStorage survives a reload): reopen that one.
   const tabId = getTabProject()
   const tabDoc = tabId ? readProject(tabId) : null
   if (tabId && tabDoc) {
     setProjectUrl(tabId)
     store.load({ schema: tabDoc.schema, layout: tabDoc.layout, dbmlText: tabDoc.dbmlText ?? undefined })
-    session = { activeId: tabId, controller: createSaveController(useSchemaStore, tabId), needsLauncher: false }
+    session = { activeId: tabId, controller: createSaveController(useSchemaStore, tabId) }
     return session
   }
 
-  // No project for this tab yet. Only ask which one to open when there is actually something to
-  // choose between: on a first run the user gets a blank canvas, not a dialog.
-  const choices = listProjects().filter((p) => (readProject(p.id)?.schema.tables.length ?? 0) > 0)
-  if (choices.length === 0) {
-    setTabProject(meta.id)
-    session = { activeId: meta.id, controller: createSaveController(useSchemaStore, meta.id), needsLauncher: false }
-    return session
-  }
-
-  // Saved diagrams exist but this tab has not picked one. The canvas stays empty and the controller
-  // starts paused, so autosave cannot write that empty state over a project the user has not opened.
-  session = {
-    activeId: meta.id,
-    controller: createSaveController(useSchemaStore, meta.id, localStorage, undefined, false),
-    needsLauncher: true,
-  }
+  // A new tab opens the diagram worked on most recently; the project menu in the top bar is how you
+  // move to another one. Nothing is asked on load.
+  const recent = listProjects().find((p) => (readProject(p.id)?.schema.tables.length ?? 0) > 0)
+  const open = recent ?? meta
+  const doc = readProject(open.id)
+  setTabProject(open.id)
+  if (doc) store.load({ schema: doc.schema, layout: doc.layout, dbmlText: doc.dbmlText ?? undefined })
+  session = { activeId: open.id, controller: createSaveController(useSchemaStore, open.id) }
   return session
 }
 
