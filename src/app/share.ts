@@ -7,6 +7,7 @@ import type { Layout, Schema } from '@/core/schema'
 import type { useSchemaStore } from '@/store'
 import { copyText } from './CopyButton'
 import { toast } from './toast'
+import { track } from './analytics'
 
 export const SHARE_PARAM = 'd'
 export const SHARE_WARN_BYTES = 30 * 1024
@@ -71,6 +72,7 @@ export async function shareCurrent(store: typeof useSchemaStore): Promise<string
   const s = store.getState()
   const url = buildShareUrl({ schema: s.schema, layout: s.layout })
   const ok = await copyText(url)
+  track({ name: 'share-created', tables: s.schema.tables.length })
   const size = new TextEncoder().encode(url).length
   if (!ok) toast('Could not copy share link', 'error')
   else if (size > SHARE_WARN_BYTES) toast(`Share link copied — but it is ${(size / 1024).toFixed(0)} KB; some apps truncate long URLs`, 'error')

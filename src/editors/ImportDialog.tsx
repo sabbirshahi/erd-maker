@@ -10,6 +10,7 @@ import { reconcile } from '@/core/reconcile'
 import { useSchemaStore } from '@/store'
 import { Modal } from './Modal'
 import { toast } from '@/app/toast'
+import { track } from '@/app/analytics'
 
 export type ImportKind = 'dbml' | 'sql' | 'django'
 export type ImportDialect = SqlImportDialect | 'auto'
@@ -144,6 +145,7 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
       const source = kind === 'django' ? 'django' : kind === 'sql' ? 'sql' : 'dbml'
       store.setDiagnostics(source, result.diagnostics)
       void autoLayoutIfAvailable()
+      track({ name: 'import', kind })
       toast(`Imported ${merged.tables.length} table${merged.tables.length === 1 ? '' : 's'}`)
       setText('')
       setFileName(null)

@@ -14,6 +14,7 @@ import { CodeMirrorEditor } from './CodeMirrorEditor'
 import { dbml } from './dbml-language'
 import { CopyButton } from '@/app/CopyButton'
 import { Modal } from './Modal'
+import { track } from '@/app/analytics'
 
 export type ExportFormat = 'dbml' | 'postgres' | 'mysql' | 'sqlite' | 'django' | 'json'
 
@@ -178,7 +179,10 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
             type="button"
             data-testid="export-download"
             disabled={loading || text === ''}
-            onClick={() => downloadText(meta.file, text, meta.mime)}
+            onClick={() => {
+              track({ name: 'export', format })
+              downloadText(meta.file, text, meta.mime)
+            }}
             className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Download

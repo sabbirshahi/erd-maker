@@ -5,6 +5,7 @@ import { sketchDbml } from '@/examples/sketch'
 import { useSchemaStore } from '@/store'
 import { toast } from './toast'
 import { Modal } from './ui'
+import { track } from './analytics'
 
 export async function applyExample(example: Example): Promise<boolean> {
   const res = await loadExample(example)
@@ -13,6 +14,7 @@ export async function applyExample(example: Example): Promise<boolean> {
     return false
   }
   useSchemaStore.getState().load(res.doc)
+  track({ name: 'example-opened', example: example.id })
   toast(`Loaded example: ${example.title}`)
   return true
 }

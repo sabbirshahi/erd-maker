@@ -29,3 +29,8 @@ dist-ssr
 test-results/
 playwright-report/
 coverage/
+
+# Local analytics config; .env.example is committed
+.env
+.env.local
+.env.*.local

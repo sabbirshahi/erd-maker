@@ -19,6 +19,7 @@ import { useTheme } from './theme'
 import { toast } from './toast'
 import { Button, ErrorBoundary, IconButton, Menu, Tabs } from './ui'
 import { useStore } from 'zustand'
+import { track } from './analytics'
 
 type RightTab = TextView | 'demo'
 
@@ -234,6 +235,7 @@ export function Shell() {
 
   const exportJson = () => {
     const s = useSchemaStore.getState()
+    track({ name: 'export', format: 'json' })
     downloadText(JSON.stringify({ v: 1, schema: s.schema, layout: s.layout }, null, 2), 'erd.json', 'application/json')
     toast('Downloaded erd.json')
   }
@@ -241,6 +243,7 @@ export function Shell() {
     const s = useSchemaStore.getState()
     // Dynamic import keeps the (large) @dbml/core chunk out of the shell's boot path.
     const text = s.dbmlText ?? (await import('@/core/dbml')).generateDbml(s.schema)
+    track({ name: 'export', format: 'dbml' })
     downloadText(text, 'schema.dbml', 'text/plain')
     toast('Downloaded schema.dbml')
   }
@@ -251,6 +254,7 @@ export function Shell() {
       const schema = d.schema as { tables?: unknown[] } | undefined
       if (!schema || !Array.isArray(schema.tables)) throw new Error('missing schema')
       useSchemaStore.getState().load({ schema: d.schema as never, layout: (d.layout as never) ?? {} })
+      track({ name: 'import', kind: 'json' })
       toast(`Imported ${file.name}`)
     } catch {
       toast('Not a valid DBridge JSON file', 'error')
@@ -320,7 +324,7 @@ export function Shell() {
               { id: 'export-dialog', label: 'DBML, SQL or models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
               { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
               { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
-              { id: 'export-png', label: 'Export PNG', onSelect: () => void exportCanvasPng() },
+              { id: 'export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng() } },
             ]}
           />
           <Button variant="primary" data-testid="btn-share" onClick={() => void shareCurrent(useSchemaStore)}>

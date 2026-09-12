@@ -7,6 +7,28 @@ SQLite in the browser (Pyodide) so you can seed fake data and run SQL / ORM quer
 No backend. No accounts. Your work autosaves to `localStorage`, and **Share** puts the whole document in
 the URL.
 
+## Privacy
+
+Your schema never leaves your browser. Diagrams are stored only in `localStorage`, and a share link
+carries the document inside the URL itself rather than uploading it anywhere.
+
+The hosted build does count usage, and it is worth being precise about the difference: analytics
+record *that* an action happened, never *what* it acted on. It uses [Plausible](https://plausible.io),
+which is cookieless, sets no identifiers and needs no consent banner, and it collects:
+
+- a pageview (URL path, referrer, browser, OS and country — the standard Plausible set)
+- five events with fixed properties: `import` (`kind`), `export` (`format`), `share-created`
+  (`tables`, a count), `example-opened` (`example`, the built-in example's id) and `demo-started`
+
+That is the complete list. No table names, no column names, no DBML, no `models.py`, and no share-link
+contents are ever sent — `TrackedEvent` in `src/app/analytics.ts` is a closed union, so sending
+anything else is a type error rather than a judgement call.
+
+Analytics load **only** when `VITE_ANALYTICS_DOMAIN` is set at build time. It is unset in development,
+in CI and for the Playwright suite, and without it no script tag is added and no request is made. Run
+your own build without that variable and the app makes no network calls at all beyond loading itself
+(and Pyodide, if you open demo mode).
+
 ## Features
 
 - DBML editor (dbdiagram.io dialect) with diagnostics, ⇄ canvas, ⇄ Django models (parse *and* generate)

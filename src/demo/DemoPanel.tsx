@@ -25,6 +25,7 @@ import {
   type ProgressEvent,
   type QueryResult,
 } from './protocol'
+import { track } from '@/app/analytics'
 
 export interface DemoPanelProps {
   className?: string
@@ -102,6 +103,8 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
   const doBuild = useCallback(async () => {
     setPhase('building')
     setFatal(null)
+    // Counted once per build, which is what "started demo mode" means in practice.
+    track({ name: 'demo-started' })
     try {
       const args = await buildArgs(rows, seed)
       const info = await client.build(args)

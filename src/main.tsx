@@ -3,12 +3,15 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { useSchemaStore } from '@/store'
+import { initAnalytics } from '@/app/analytics'
 import { initTheme } from '@/app/theme'
 import { CrashScreen } from '@/app/CrashScreen'
 import { bootSession } from '@/app/session'
 import { restoreFromHash } from '@/app/share'
 
 initTheme()
+// No-op unless VITE_ANALYTICS_DOMAIN is set: no script tag, no request.
+initAnalytics()
 
 /** True in dev, under vitest, and for the Playwright suite (which runs a production build). */
 const testable = import.meta.env.DEV || import.meta.env.MODE === 'test' || location.search.includes('e2e')
