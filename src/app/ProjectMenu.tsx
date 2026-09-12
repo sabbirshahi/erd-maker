@@ -19,6 +19,8 @@ import {
   renameProject,
   type ProjectMeta,
 } from './projects'
+import { backupFilename, buildBackup, restoreBackup, serializeBackup, BackupError } from './backup'
+import { downloadText } from './exportPng'
 import { setTabProject } from './session'
 import type { SaveController, SaveStatus } from './saveController'
 
@@ -65,6 +67,8 @@ const ICONS = {
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
   grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 19h16',
+  archive: 'M3 7h18v13H3zM3 7l2-4h14l2 4M10 12h4',
+  upload: 'M12 21V9m0 0 4 4m-4-4-4 4M4 5h16',
 } as const
 
 function Action({ icon, children, danger = false }: { icon: keyof typeof ICONS; children: React.ReactNode; danger?: boolean }) {
@@ -92,6 +96,7 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
   const [projects, setProjects] = useState<ProjectMeta[]>(() => listProjects())
   const [renaming, setRenaming] = useState(false)
   const renameInput = useRef<HTMLInputElement>(null)
+  const restoreInput = useRef<HTMLInputElement>(null)
 
   // The controller is an external store; subscribing to it directly keeps the label in step
   // without mirroring its state into this component.
@@ -190,6 +195,31 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
     [active, activeId, refresh],
   )
 
+  const downloadBackup = useCallback(() => {
+    controller.save()
+    const backup = buildBackup()
+    downloadText(serializeBackup(backup), backupFilename(), 'application/json')
+    const n = backup.projects.length
+    toast(`Backed up ${n} ${n === 1 ? 'diagram' : 'diagrams'}`)
+  }, [controller])
+
+  const restoreFromFile = useCallback(
+    async (file: File) => {
+      try {
+        const { imported, skipped } = restoreBackup(await file.text())
+        refresh()
+        toast(
+          skipped > 0
+            ? `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported, ${skipped} unreadable`
+            : `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported`,
+        )
+      } catch (err) {
+        toast(err instanceof BackupError ? err.message : 'Could not read that backup file.', 'error')
+      }
+    },
+    [refresh],
+  )
+
   /**
    * The status label is also the escape hatch. With no Save button, a failed or conflicting save
    * would otherwise be a dead end, so clicking the label retries it.
@@ -210,6 +240,18 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
 
   return (
     <div className="flex min-w-0 items-center gap-2" data-testid="project-bar">
+      <input
+        ref={restoreInput}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        data-testid="restore-backup-input"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) void restoreFromFile(f)
+          e.target.value = ''
+        }}
+      />
       {renaming ? (
         <input
           ref={renameInput}
@@ -265,6 +307,9 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
             { id: 'project-examples', label: <Action icon="grid">Examples…</Action>, onSelect: onExamples },
             { id: 'project-import', label: <Action icon="download">Paste DBML, SQL or models.py…</Action>, onSelect: onImport },
             { id: 'import-json', label: <Action icon="download">Open .json…</Action>, onSelect: onOpenJson },
+            { id: 'hdr-backup', label: <SectionLabel border>All diagrams</SectionLabel>, disabled: true, onSelect: () => {} },
+            { id: 'backup-download', label: <Action icon="archive">Download backup…</Action>, hint: `${projects.length}`, onSelect: downloadBackup },
+            { id: 'backup-restore', label: <Action icon="upload">Restore from backup…</Action>, onSelect: () => restoreInput.current?.click() },
           ]}
         />
       )}

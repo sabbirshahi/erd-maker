@@ -156,3 +156,76 @@ test.describe('app shell', () => {
     await expect.poll(() => tableNames(page)).toContain('orders')
   })
 })
+
+test.describe('crash screen', () => {
+  test('a shell-level failure keeps the diagrams and offers a backup', async ({ page }) => {
+    // Seed a diagram, then crash on the next load: the screen must not imply it was lost.
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+
+    await page.goto('/?e2e&crash=1')
+    await expect(page.getByTestId('crash-screen')).toBeVisible()
+    await expect(page.getByTestId('crash-reassurance')).toContainText('still saved in this browser')
+
+    // The backup button produces a real file containing the diagram that was already there.
+    const download = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('crash-backup').click(),
+    ]).then(([d]) => d)
+    expect(download.suggestedFilename()).toMatch(/^dbridge-backup-\d{4}-\d{2}-\d{2}\.json$/)
+
+    // Reload gets the user back to a working app with the diagram intact.
+    await page.getByTestId('crash-reload').click()
+    await page.goto(URL)
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+  })
+})
+
+test.describe('workspace backup', () => {
+  test('backup downloads every diagram and restoring adds them back without overwriting', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+    const before = await page.evaluate(() => window.__erd!.store.getState().schema.tables.length)
+    expect(before).toBeGreaterThan(0)
+
+    await page.getByTestId('btn-project').click()
+    const download = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('menu-backup-download').click(),
+    ]).then(([d]) => d)
+    const file = await download.path()
+
+    const diagramsBefore = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('dbridge:projects:v1')!).projects.length,
+    )
+
+    // Restoring the same file adds copies; the originals stay put.
+    await page.getByTestId('btn-project').click()
+    await page.getByTestId('menu-backup-restore').click()
+    await page.getByTestId('restore-backup-input').setInputFiles(file)
+    await expect(toastWith(page, 'imported')).toBeVisible()
+
+    const diagramsAfter = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('dbridge:projects:v1')!).projects.length,
+    )
+    expect(diagramsAfter).toBe(diagramsBefore * 2)
+    // The diagram on screen is untouched by the restore.
+    expect(await page.evaluate(() => window.__erd!.store.getState().schema.tables.length)).toBe(before)
+  })
+
+  test('a file that is not a backup is refused with a reason', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('btn-project').click()
+    await page.getByTestId('menu-backup-restore').click()
+    await page.getByTestId('restore-backup-input').setInputFiles({
+      name: 'notes.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from('{"hello":"world"}'),
+    })
+    await expect(toastWith(page, 'not a DBridge backup')).toBeVisible()
+  })
+})

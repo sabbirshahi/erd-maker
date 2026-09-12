@@ -3,9 +3,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+
+// The backup file and the crash screen both report which build produced them.
+const { version } = createRequire(import.meta.url)('./package.json') as { version: string }
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: { __APP_VERSION__: JSON.stringify(version) },
   resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
   worker: { format: 'es' },
   optimizeDeps: { exclude: ['web-tree-sitter'] },
