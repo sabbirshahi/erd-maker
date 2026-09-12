@@ -1,5 +1,5 @@
-/** Export the React Flow canvas as a PNG via html-to-image. */
-import { toPng } from 'html-to-image'
+/** Export the React Flow canvas as a PNG or an SVG via html-to-image. */
+import { toPng, toSvg } from 'html-to-image'
 import { toast } from './toast'
 import { readToken } from '@/canvas/tokens'
 
@@ -71,6 +71,41 @@ export async function exportCanvasPng(filename = 'erd.png'): Promise<boolean> {
   } catch (err) {
     console.error(err)
     toast('PNG export failed', 'error')
+    return false
+  } finally {
+    restoreEdges()
+  }
+}
+
+/**
+ * Export the same view as SVG.
+ *
+ * Deliberately a mirror of exportCanvasPng, including inlineEdgeStyles: html-to-image clones the
+ * DOM the same way for both, so SVG loses edge strokes for exactly the reason PNG did.
+ */
+export async function exportCanvasSvg(filename = 'erd.svg'): Promise<boolean> {
+  const el = findCanvasElement()
+  if (!el) {
+    toast('Canvas is not available to export', 'error')
+    return false
+  }
+  const restoreEdges = inlineEdgeStyles(el)
+  try {
+    const dataUrl = await toSvg(el, {
+      backgroundColor: readToken('--erd-bg'),
+      cacheBust: true,
+      filter: (node) => {
+        const cl = (node as HTMLElement).classList
+        if (!cl) return true
+        return !EXCLUDE.some((c) => cl.contains(c))
+      },
+    })
+    downloadDataUrl(dataUrl, filename)
+    toast('Exported SVG')
+    return true
+  } catch (err) {
+    console.error(err)
+    toast('SVG export failed', 'error')
     return false
   } finally {
     restoreEdges()

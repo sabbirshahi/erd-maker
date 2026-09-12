@@ -256,3 +256,33 @@ test.describe('shortcuts help', () => {
     await expect(page.getByTestId('shortcuts-dialog')).toContainText('Add a table')
   })
 })
+
+test.describe('SVG export', () => {
+  test('downloads a real SVG whose edges and labels are not blank', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node')).toHaveCount(4)
+
+    await page.getByTestId('btn-export').click()
+    const download = page.waitForEvent('download')
+    await page.getByTestId('menu-export-svg').click()
+    const file = await download
+    expect(file.suggestedFilename()).toBe('erd.svg')
+
+    const { readFileSync } = await import('node:fs')
+    const svg = readFileSync(await file.path(), 'utf8')
+    expect(svg.startsWith('<svg')).toBe(true)
+
+    // The bug this mirrors: edge paths losing their stroke during the clone. An edge without a
+    // stroke colour would make the relations invisible, which is what happened to PNG.
+    const edgePaths = [...svg.matchAll(/class="[^"]*react-flow__edge-path[^"]*"[^>]*/g)].map((m) => m[0])
+    expect(edgePaths.length).toBeGreaterThan(0)
+    for (const path of edgePaths) {
+      expect(path).toMatch(/stroke:\s*rgb/)
+    }
+    // Table names and cardinality labels survive too.
+    expect(svg).toContain('users')
+    await expect(toastWith(page, 'Exported SVG')).toBeVisible()
+  })
+})

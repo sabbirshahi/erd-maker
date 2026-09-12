@@ -17,7 +17,7 @@
 /** Every event the app is allowed to send, with the only properties each may carry. */
 export type TrackedEvent =
   | { name: 'import'; kind: 'dbml' | 'sql' | 'django' | 'json' }
-  | { name: 'export'; format: 'dbml' | 'postgres' | 'mysql' | 'sqlite' | 'django' | 'json' | 'png' }
+  | { name: 'export'; format: 'dbml' | 'postgres' | 'mysql' | 'sqlite' | 'django' | 'json' | 'png' | 'svg' }
   | { name: 'share-created'; tables: number }
   | { name: 'example-opened'; example: string }
   | { name: 'demo-started' }

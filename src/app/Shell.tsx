@@ -8,7 +8,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSchemaStore, useAllDiagnostics, undo, redo, type TextView } from '@/store'
 import { EmptyState } from './EmptyState'
 import { ExamplesGallery } from './ExamplesMenu'
-import { downloadText, exportCanvasPng } from './exportPng'
+import { downloadText, exportCanvasPng, exportCanvasSvg } from './exportPng'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
 import { ProjectMenu } from './ProjectMenu'
 import { ShortcutsDialog } from './ShortcutsDialog'
@@ -334,6 +334,7 @@ export function Shell() {
               { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
               { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
               { id: 'export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng() } },
+              { id: 'export-svg', label: 'Export SVG', onSelect: () => { track({ name: 'export', format: 'svg' }); void exportCanvasSvg() } },
             ]}
           />
           <Button variant="primary" data-testid="btn-share" onClick={() => void shareCurrent(useSchemaStore)}>
