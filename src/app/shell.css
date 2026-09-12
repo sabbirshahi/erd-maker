@@ -543,3 +543,31 @@
   font-size: var(--erd-fs-md);
   line-height: 1.5;
 }
+
+/* ---- shortcuts dialog ---- */
+.erd-shortcuts { display: flex; flex-direction: column; gap: var(--erd-space-6); }
+.erd-shortcuts__title {
+  margin: 0 0 var(--erd-space-4);
+  color: var(--erd-text-muted);
+  font-size: var(--erd-fs-md);
+  font-weight: var(--erd-weight-normal);
+}
+.erd-shortcuts__list { margin: 0; }
+.erd-shortcuts__row {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--erd-space-5);
+  padding: var(--erd-space-2) 0;
+}
+.erd-shortcuts__row + .erd-shortcuts__row { border-top: var(--erd-hairline-width) solid var(--erd-hairline); }
+.erd-shortcuts__keys { display: flex; flex-wrap: wrap; gap: var(--erd-space-2); margin: 0; }
+.erd-shortcuts__what { margin: 0; font-size: var(--erd-fs-md); }
+.erd-shortcuts__scope {
+  margin-left: var(--erd-space-4);
+  padding: 0 var(--erd-space-3);
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-surface-2);
+  color: var(--erd-text-muted);
+  font-size: var(--erd-fs-sm);
+}

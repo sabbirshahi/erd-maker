@@ -69,6 +69,7 @@ const ICONS = {
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 19h16',
   archive: 'M3 7h18v13H3zM3 7l2-4h14l2 4M10 12h4',
   upload: 'M12 21V9m0 0 4 4m-4-4-4 4M4 5h16',
+  keyboard: 'M2 6h20v12H2zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8',
 } as const
 
 function Action({ icon, children, danger = false }: { icon: keyof typeof ICONS; children: React.ReactNode; danger?: boolean }) {
@@ -90,9 +91,10 @@ export interface ProjectMenuProps {
   onExamples: () => void
   onImport: () => void
   onOpenJson: () => void
+  onShortcuts: () => void
 }
 
-export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, onImport, onOpenJson }: ProjectMenuProps) {
+export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, onImport, onOpenJson, onShortcuts }: ProjectMenuProps) {
   const [projects, setProjects] = useState<ProjectMeta[]>(() => listProjects())
   const [renaming, setRenaming] = useState(false)
   const renameInput = useRef<HTMLInputElement>(null)
@@ -310,6 +312,8 @@ export function ProjectMenu({ controller, activeId, onActiveChange, onExamples, 
             { id: 'hdr-backup', label: <SectionLabel border>All diagrams</SectionLabel>, disabled: true, onSelect: () => {} },
             { id: 'backup-download', label: <Action icon="archive">Download backup…</Action>, hint: `${projects.length}`, onSelect: downloadBackup },
             { id: 'backup-restore', label: <Action icon="upload">Restore from backup…</Action>, onSelect: () => restoreInput.current?.click() },
+            { id: 'hdr-help', label: <SectionLabel border>Help</SectionLabel>, disabled: true, onSelect: () => {} },
+            { id: 'shortcuts', label: <Action icon="keyboard">Keyboard shortcuts</Action>, hint: '?', onSelect: onShortcuts },
           ]}
         />
       )}

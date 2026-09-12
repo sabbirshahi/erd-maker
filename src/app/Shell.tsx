@@ -11,6 +11,7 @@ import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng } from './exportPng'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
 import { ProjectMenu } from './ProjectMenu'
+import { ShortcutsDialog } from './ShortcutsDialog'
 import { getSession } from './session'
 import { startCrossTabSync } from './crossTab'
 import { ProblemsPanel, countBySeverity } from './ProblemsPanel'
@@ -151,6 +152,7 @@ export function Shell() {
   )
 
   const [gallery, setGallery] = useState(false)
+  const [shortcuts, setShortcuts] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exportSelectionOnly, setExportSelectionOnly] = useState(false)
@@ -187,6 +189,12 @@ export function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
+      // '?' is a printable character, so it must never be taken while the user is typing.
+      if (!mod && e.key === '?' && !isEditableTarget(e.target)) {
+        e.preventDefault()
+        setShortcuts((o) => !o)
+        return
+      }
       if (!mod) return
       // Ctrl+S saves from anywhere, including while typing in an editor.
       if (e.key.toLowerCase() === 's') {
@@ -277,6 +285,7 @@ export function Shell() {
           onExamples={() => setGallery(true)}
           onImport={() => setImportOpen(true)}
           onOpenJson={() => fileInput.current?.click()}
+          onShortcuts={() => setShortcuts(true)}
         />
         <input
           ref={fileInput}
@@ -429,6 +438,7 @@ export function Shell() {
       </div>
 
       <ExamplesGallery open={gallery} onClose={() => setGallery(false)} />
+      <ShortcutsDialog open={shortcuts} onClose={() => setShortcuts(false)} />
       <Pane name="Import dialog">
         <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       </Pane>

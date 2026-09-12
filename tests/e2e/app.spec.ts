@@ -229,3 +229,30 @@ test.describe('workspace backup', () => {
     await expect(toastWith(page, 'not a DBridge backup')).toBeVisible()
   })
 })
+
+test.describe('shortcuts help', () => {
+  test('? opens the list, but not while typing in an editor', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('start-blank').click()
+
+    await page.keyboard.press('?')
+    await expect(page.getByTestId('shortcuts-dialog')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('shortcuts-dialog')).toBeHidden()
+
+    // Inside the DBML editor '?' is just a character. Both editors are mounted (the inactive one
+    // is hidden), so the DBML one has to be named rather than matched by class alone.
+    const dbml = page.locator('[data-language="dbml"]')
+    await dbml.click()
+    await page.keyboard.type('?')
+    await expect(page.getByTestId('shortcuts-dialog')).toBeHidden()
+    await expect(dbml).toContainText('?')
+  })
+
+  test('the list is also reachable from the menu', async ({ page }) => {
+    await page.goto(URL)
+    await page.getByTestId('btn-project').click()
+    await page.getByTestId('menu-shortcuts').click()
+    await expect(page.getByTestId('shortcuts-dialog')).toContainText('Add a table')
+  })
+})
