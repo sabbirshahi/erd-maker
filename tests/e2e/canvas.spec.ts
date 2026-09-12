@@ -214,7 +214,7 @@ test.describe('canvas', () => {
 
     // Autosave writes the tab's active project → reload keeps positions.
     await expect
-      .poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('erd-maker:project:'))))
+      .poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('dbridge:project:'))))
       .toBe(true)
     await page.waitForTimeout(700)
     await page.reload()

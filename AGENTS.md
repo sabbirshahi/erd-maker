@@ -1,4 +1,4 @@
-# ERD Maker — Agent Guide
+# DBridge — Agent Guide
 
 Browser-only ERD maker: **DBML** (dbdiagram.io language) ⇄ **canvas** ⇄ **Django models.py**, plus a **demo mode**
 that runs real Django + SQLite in the browser via Pyodide. Zero backend; deployed as a static site on Vercel.

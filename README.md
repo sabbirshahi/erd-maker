@@ -1,4 +1,4 @@
-# ERD Maker
+# DBridge
 
 Browser-only entity-relationship diagram maker. Write **DBML**, drag tables on a **canvas**, and read
 the equivalent **Django `models.py`** — all three views stay in sync. A **demo mode** boots real Django +

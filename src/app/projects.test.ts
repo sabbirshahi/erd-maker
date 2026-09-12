@@ -10,6 +10,7 @@ import {
   renameProject,
   setActiveProject,
   writeProject,
+  migrateLegacyKeys,
   DEFAULT_PROJECT_NAME,
 } from './projects'
 import { DOC_KEY, serializeDoc } from './persistence'
@@ -91,7 +92,7 @@ describe('projects', () => {
     setActiveProject(a.id, storage)
     expect(readIndex(storage).activeId).toBe(a.id)
 
-    storage.setItem('erd-maker:projects:v1', '{ not json')
+    storage.setItem('dbridge:projects:v1', '{ not json')
     expect(readIndex(storage).projects).toEqual([])
     expect(() => ensureProjects(storage)).not.toThrow()
   })
@@ -100,5 +101,31 @@ describe('projects', () => {
     const full = { ...memStorage(), setItem: () => { throw new Error('QuotaExceededError') } } as unknown as Storage
     const meta = createProject('X', null, storage)
     expect(writeProject(meta.id, state(schemaWith('t')), full)).toBe(false)
+  })
+})
+
+describe('rename migration (erd-maker: -> dbridge:)', () => {
+  it('adopts diagrams saved under the old prefix', () => {
+    const doc = JSON.stringify(serializeDoc(state(schemaWith('kept_from_before'))))
+    storage.setItem('erd-maker:project:abc', doc)
+    storage.setItem('erd-maker:projects:v1', JSON.stringify({ v: 1, activeId: 'abc', projects: [{ id: 'abc', name: 'Old diagram', createdAt: '', updatedAt: '' }] }))
+
+    const meta = ensureProjects(storage)
+
+    expect(meta.name).toBe('Old diagram')
+    expect(readProject('abc', storage)?.schema.tables[0].name).toBe('kept_from_before')
+    // The originals stay put, so an older build still opens.
+    expect(storage.getItem('erd-maker:project:abc')).toBe(doc)
+  })
+
+  it('never overwrites a key the new prefix already has', () => {
+    storage.setItem('erd-maker:theme', 'dark')
+    storage.setItem('dbridge:theme', 'light')
+    migrateLegacyKeys(storage)
+    expect(storage.getItem('dbridge:theme')).toBe('light')
+  })
+
+  it('is a no-op when there is nothing to migrate', () => {
+    expect(migrateLegacyKeys(storage)).toBe(0)
   })
 })

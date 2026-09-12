@@ -13,7 +13,7 @@ test.describe('app shell', () => {
   test('fresh profile shows the empty state; Start blank hides it', async ({ page }) => {
     await page.goto(URL)
     await expect(page.getByTestId('empty-state')).toBeVisible()
-    await expect(page.getByTestId('topbar')).toContainText('ERD Maker')
+    await expect(page.getByTestId('topbar')).toContainText('DBridge')
     await expect(page.getByRole('tab', { name: 'DBML' })).toBeVisible()
     await page.getByTestId('start-blank').click()
     await expect(page.getByTestId('empty-state')).toBeHidden()
@@ -41,7 +41,7 @@ test.describe('app shell', () => {
 
     // Autosave writes into the tab's active project → reload restores it.
     await expect
-      .poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('erd-maker:project:'))))
+      .poll(() => page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('dbridge:project:'))))
       .toBe(true)
     await page.reload()
     await expect.poll(() => tableNames(page)).toEqual(['users', 'posts', 'tags', 'comments'])
@@ -106,7 +106,7 @@ test.describe('app shell', () => {
     const before = await isDark()
     await page.getByTestId('btn-theme').click()
     expect(await isDark()).toBe(!before)
-    expect(await page.evaluate(() => localStorage.getItem('erd-maker:theme'))).toBe(before ? 'light' : 'dark')
+    expect(await page.evaluate(() => localStorage.getItem('dbridge:theme'))).toBe(before ? 'light' : 'dark')
     await page.reload()
     expect(await isDark()).toBe(!before)
   })

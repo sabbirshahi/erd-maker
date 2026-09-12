@@ -2,18 +2,19 @@
  * Named projects: several diagrams in one browser, each with its own schema, layout and DBML text.
  *
  * Storage layout (localStorage):
- *   erd-maker:projects:v1   -> { v, activeId, projects: ProjectMeta[] }   (small index)
- *   erd-maker:project:<id>  -> SavedDoc                                    (one per project)
+ *   dbridge:projects:v1   -> { v, activeId, projects: ProjectMeta[] }     (small index)
+ *   dbridge:project:<id>  -> SavedDoc                                      (one per project)
  *
  * The index is kept separate from the documents so switching projects and renaming never rewrites
- * every diagram. A pre-projects document (erd-maker:doc:v1) is migrated into the first project.
+ * every diagram. A pre-projects document is migrated into the first project, and keys written
+ * under the old `erd-maker:` prefix are adopted on load.
  */
 import { nanoid } from 'nanoid'
 import type { Layout, Schema } from '@/core/schema'
 import { DOC_KEY, migrateDoc, serializeDoc, type SavedDoc } from './persistence'
 
-export const INDEX_KEY = 'erd-maker:projects:v1'
-export const PROJECT_KEY_PREFIX = 'erd-maker:project:'
+export const INDEX_KEY = 'dbridge:projects:v1'
+export const PROJECT_KEY_PREFIX = 'dbridge:project:'
 export const INDEX_VERSION = 1
 export const DEFAULT_PROJECT_NAME = 'Untitled diagram'
 
@@ -167,11 +168,44 @@ export function activeProject(storage: Storage = localStorage): ProjectMeta | nu
   return index.projects.find((p) => p.id === index.activeId) ?? null
 }
 
+/** Prefix used before the product was renamed to DBridge. */
+const LEGACY_PREFIX = 'erd-maker:'
+
+/**
+ * Copy anything still saved under the old `erd-maker:` prefix across to `dbridge:`.
+ *
+ * The rename would otherwise orphan real diagrams sitting in someone's browser. Only keys the new
+ * prefix does not already have are copied, and the originals are left untouched so an older build
+ * still opens. Safe to run on every boot, and safe to delete after a release or two.
+ */
+export function migrateLegacyKeys(storage: Storage = localStorage): number {
+  let copied = 0
+  try {
+    const legacy: string[] = []
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i)
+      if (key?.startsWith(LEGACY_PREFIX)) legacy.push(key)
+    }
+    for (const key of legacy) {
+      const next = `dbridge:${key.slice(LEGACY_PREFIX.length)}`
+      if (storage.getItem(next) !== null) continue
+      const value = storage.getItem(key)
+      if (value === null) continue
+      storage.setItem(next, value)
+      copied++
+    }
+  } catch {
+    // Storage unavailable (private mode, quota): nothing to migrate, and not worth failing boot.
+  }
+  return copied
+}
+
 /**
  * Ensure at least one project exists and one is active, adopting a pre-projects document if found.
  * Safe to call on every boot.
  */
 export function ensureProjects(storage: Storage = localStorage): ProjectMeta {
+  migrateLegacyKeys(storage)
   const index = readIndex(storage)
   const current = index.projects.find((p) => p.id === index.activeId)
   if (current) return current

@@ -20,7 +20,7 @@ import { Button, ErrorBoundary, IconButton, Menu, Tabs } from './ui'
 
 type RightTab = TextView | 'demo'
 
-const UI_KEY = 'erd-maker:ui:v1'
+const UI_KEY = 'dbridge:ui:v1'
 interface UiPrefs {
   rightWidth: number
   problemsOpen: boolean
@@ -54,7 +54,7 @@ function Logo() {
         <rect x="13" y="15" width="8" height="6" rx="1" />
         <path d="M7 9v5a2 2 0 0 0 2 2h4" />
       </svg>
-      <span>ERD Maker</span>
+      <span>DBridge</span>
     </div>
   )
 }
@@ -187,7 +187,7 @@ export function Shell() {
       useSchemaStore.getState().load({ schema: d.schema as never, layout: (d.layout as never) ?? {} })
       toast(`Imported ${file.name}`)
     } catch {
-      toast('Not a valid ERD Maker JSON file', 'error')
+      toast('Not a valid DBridge JSON file', 'error')
     }
   }
 

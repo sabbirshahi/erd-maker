@@ -16,7 +16,7 @@ export interface Session {
  * are shared across tabs, but switching project in one tab must not yank another tab's canvas, so
  * the active id lives in sessionStorage rather than in the shared index.
  */
-export const TAB_KEY = 'erd-maker:tab-project'
+export const TAB_KEY = 'dbridge:tab-project'
 
 /** Query parameter naming the project, so a diagram has its own shareable, bookmarkable URL. */
 export const PROJECT_PARAM = 'p'

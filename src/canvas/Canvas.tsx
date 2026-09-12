@@ -164,7 +164,7 @@ function CanvasInner() {
         },
       ]
     })
-  }, [schema.refs, schema.tables, layout, fallback, dragPos, measured, selection.refId, anchor, hl, edgeColor, edgeColorHl])
+  }, [schema.refs, schema.tables, layout, fallback, dragPos, measured, selection.refId, dimAnchor, hl, edgeColor, edgeColorHl])
 
   // ---- selection sync (React Flow → store) ----
   const applySelection = useCallback(

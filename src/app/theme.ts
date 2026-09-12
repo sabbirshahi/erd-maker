@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 
 export type Theme = 'light' | 'dark'
-export const THEME_KEY = 'erd-maker:theme'
+export const THEME_KEY = 'dbridge:theme'
 
 const listeners = new Set<(t: Theme) => void>()
 

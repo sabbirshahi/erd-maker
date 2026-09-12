@@ -4,11 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ERD Maker</title>
-    <meta name="description" content="Browser-only ERD maker: DBML, live diagram and Django models, always in sync." />
+    <title>DBridge</title>
+    <meta
+      name="description"
+      content="DBridge: DBML, a live diagram and Django models.py, always in sync. Browser-only ERD editor, no backend, no account."
+    />
+
+    <!-- Share links ('#d=...') are pasted into chat apps, so they need a card rather than a bare URL.
+         og:url and og:image are still to be filled in: the production domain is not chosen yet, and
+         a 1200x630 image has to live in public/ to keep a stable URL. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DBridge" />
+    <meta property="og:title" content="DBridge — DBML, diagram and Django models in sync" />
+    <meta
+      property="og:description"
+      content="Browser-only ERD editor. Write DBML, drag tables on a canvas, read the Django models.py — all three stay in sync. No backend, no account."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
     <script>
       try {
-        var t = localStorage.getItem('erd-maker:theme')
+        var t = localStorage.getItem('dbridge:theme') || localStorage.getItem('erd-maker:theme')
         if (t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches))
           document.documentElement.classList.add('dark')
       } catch (e) {}

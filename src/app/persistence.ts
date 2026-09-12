@@ -5,7 +5,7 @@
 import type { Layout, Schema } from '@/core/schema'
 import type { useSchemaStore } from '@/store'
 
-export const DOC_KEY = 'erd-maker:doc:v1'
+export const DOC_KEY = 'dbridge:doc:v1'
 export const DOC_VERSION = 1
 export const AUTOSAVE_DEBOUNCE_MS = 500
 
