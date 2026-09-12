@@ -409,3 +409,46 @@ textarea.erd-input {
   overflow: hidden;
 }
 .erd-minimap .react-flow__minimap-node { rx: 2; }
+
+/* ---- multi-selection ---- */
+/* A thin ring alone was hard to track once several tables were picked, so a selected table also
+   gets an accent wash and a check badge. */
+.erd-table--multi {
+  box-shadow: 0 0 0 3px var(--erd-accent), 0 6px 18px rgb(0 0 0 / 0.16);
+}
+.erd-table--multi .erd-table__header {
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--erd-accent) 14%, transparent);
+}
+.erd-table__check {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--erd-node-bg);
+  border-radius: 999px;
+  background: var(--erd-accent);
+  color: #fff;
+}
+.erd-selection-bar__names {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.erd-selection-chip {
+  max-width: 120px;
+  padding: 1px 6px;
+  overflow: hidden;
+  border: 1px solid var(--erd-panel-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--erd-accent) 10%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}

@@ -108,6 +108,8 @@ function CanvasInner() {
 
   // M5 highlight sets → store (for other views) + node/edge classes.
   const hl = useMemo(() => computeHighlight(schema, anchor), [schema, anchor])
+  /** Suppress hover/connection dimming while several tables are selected. */
+  const dimAnchor = multiSelect.length > 1 ? null : anchor
   useEffect(() => {
     setHighlight(hl.tables)
   }, [hl, setHighlight])
@@ -121,9 +123,9 @@ function CanvasInner() {
         data: { tableId: t.id },
         selected: multiSelect.includes(t.id) || selection.tableId === t.id,
         measured: measured[t.id],
-        className: anchor ? (hl.tables.has(t.id) ? 'highlighted' : 'dimmed') : undefined,
+        className: dimAnchor ? (hl.tables.has(t.id) ? 'highlighted' : 'dimmed') : undefined,
       })),
-    [schema.tables, layout, fallback, dragPos, measured, selection.tableId, multiSelect, anchor, hl],
+    [schema.tables, layout, fallback, dragPos, measured, selection.tableId, multiSelect, dimAnchor, hl],
   )
 
   const edgeColor = colorMode === 'dark' ? '#71717a' : '#a1a1aa'
@@ -156,7 +158,7 @@ function CanvasInner() {
           targetHandle: handleId(r.to.tableId, r.to.columnIds[0], toSide),
           data: { refId: r.id },
           selected: isSel,
-          className: ['erd-edge', anchor ? (isHl ? 'highlighted' : 'dimmed') : ''].join(' ').trim(),
+          className: ['erd-edge', dimAnchor ? (isHl ? 'highlighted' : 'dimmed') : ''].join(' ').trim(),
           zIndex: isHl || isSel ? 1 : 0,
           ...markersFor(r.kind, isHl || isSel ? edgeColorHl : edgeColor),
         },
@@ -230,7 +232,10 @@ function CanvasInner() {
         for (const [id, on] of sel) if (on) next.add(id); else next.delete(id)
         ui.setMultiSelect(next.size > 1 ? [...next] : [])
         // With several tables selected the inspector would only describe one of them.
-        if (next.size > 1) ui.setInspectorOpen(false)
+        if (next.size > 1) {
+          ui.setInspectorOpen(false)
+          ui.setPinned(null)
+        }
         applySelection(sel, new Map())
       }
     },

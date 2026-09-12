@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo } from 'react'
 import { Handle, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react'
 import clsx from 'clsx'
+import { useCanvasUi } from './uiStore'
 import { fkSide, type Column } from '@/core/schema'
 import { useSchemaStore } from '@/store'
 import { handleId } from './handles'
@@ -113,7 +114,12 @@ function TableNodeImpl({ id, selected }: NodeProps<TableNodeType>) {
     updateNodeInternals(id)
   }, [columns, id, updateNodeInternals])
 
+  const multiSelect = useCanvasUi((s) => s.multiSelect)
+
   if (!table) return null
+  // Part of a multi-selection: worth marking explicitly, since a ring alone is easy to lose track
+  // of once several tables are picked.
+  const multi = selected && multiSelect.includes(id)
   const headerStyle = table.headerColor
     ? { background: table.headerColor, color: contrastText(table.headerColor) }
     : undefined
@@ -123,8 +129,15 @@ function TableNodeImpl({ id, selected }: NodeProps<TableNodeType>) {
       data-testid="table-node"
       data-table-name={table.name}
       data-table-id={table.id}
-      className={clsx('erd-table', selected && 'erd-table--selected')}
+      className={clsx('erd-table', selected && 'erd-table--selected', multi && 'erd-table--multi')}
     >
+      {multi && (
+        <span className="erd-table__check" data-testid="table-selected-badge" aria-label="Selected">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 13 4 4L19 7" />
+          </svg>
+        </span>
+      )}
       <div className="erd-table__header" style={headerStyle} data-testid="table-header">
         <span className="truncate" title={table.schema ? `${table.schema}.${table.name}` : table.name}>
           {table.name || <span className="italic opacity-60">unnamed</span>}
