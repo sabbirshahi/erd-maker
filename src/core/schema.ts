@@ -138,6 +138,8 @@ export interface Diagnostic {
   refId?: string
   /** True when this describes an inherently lossy mapping rather than a user error. */
   lossy?: boolean
+  /** Short name of the check that produced this, used to group rows in the Problems panel. */
+  rule?: string
 }
 
 // ---------- constructors ----------

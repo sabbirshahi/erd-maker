@@ -65,6 +65,36 @@ function SeverityIcon({ severity }: { severity: DiagnosticSeverity }) {
   )
 }
 
+const SOURCE_LABEL: Record<DiagnosticSource, string> = {
+  dbml: 'DBML',
+  django: 'Django models',
+  sql: 'SQL',
+  canvas: 'Schema',
+  demo: 'Demo',
+  typemap: 'Django mapping',
+}
+
+/** Renders `backticked` fragments of a message as code chips. */
+function Message({ text }: { text: string }) {
+  const parts = text.split(/(`[^`]*`)/g).filter(Boolean)
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('`') && part.endsWith('`') && part.length > 1 ? (
+          <code
+            key={i}
+            className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100"
+          >
+            {part.slice(1, -1)}
+          </code>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  )
+}
+
 export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void }) {
   const all = useAllDiagnostics()
   const schema = useSchemaStore((s) => s.schema)
@@ -79,6 +109,25 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
       ),
     [all, enabled, lossyOnly],
   )
+
+  /**
+   * Rows grouped by the check that produced them. Several instances of one problem read as a single
+   * finding with a count, rather than as a wall of near-identical lines.
+   */
+  const groups = useMemo(() => {
+    const byRule = new Map<string, Diagnostic[]>()
+    for (const d of visible) {
+      // Without a named check, group by where it came from. Deriving a pseudo-rule from the
+      // message text just repeated the row underneath it.
+      const key = d.rule ?? SOURCE_LABEL[d.source]
+      const list = byRule.get(key)
+      if (list) list.push(d)
+      else byRule.set(key, [d])
+    }
+    return [...byRule.entries()]
+  }, [visible])
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
   const location = (d: Diagnostic): string => {
     const parts: string[] = []
@@ -124,33 +173,52 @@ export function ProblemsPanel({ onGoto }: { onGoto?: (view: TextView) => void })
             {all.length === 0 ? 'No problems. Nice.' : 'Nothing matches the current filters.'}
           </div>
         ) : (
-          <ul className="divide-y divide-zinc-100 text-xs dark:divide-zinc-800">
-            {visible.map((d) => (
-              <li key={d.id}>
+          <div className="text-xs">
+            {groups.map(([rule, rows]) => (
+              <section key={rule} data-testid="problem-group" data-rule={rule}>
                 <button
                   type="button"
-                  data-testid="problem-row"
-                  data-severity={d.severity}
-                  onClick={() => {
-                    gotoDiagnostic(d)
-                    const view = SOURCE_VIEW[d.source]
-                    if (view) onGoto?.(view)
-                  }}
-                  className="flex w-full items-start gap-2 px-2 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  data-testid="problem-group-header"
+                  onClick={() => setCollapsed((c) => ({ ...c, [rule]: !c[rule] }))}
+                  className="sticky top-0 z-10 flex w-full items-center gap-1.5 border-b border-zinc-200 bg-zinc-50 px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
                 >
-                  <SeverityIcon severity={d.severity} />
-                  <span className="rounded bg-zinc-200 px-1 font-mono text-[10px] uppercase text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                    {d.source}
-                  </span>
-                  {d.lossy && (
-                    <span className="rounded bg-sky-100 px-1 text-[10px] text-sky-700 dark:bg-sky-900 dark:text-sky-200">lossy</span>
-                  )}
-                  <span className="flex-1 text-zinc-800 dark:text-zinc-100">{d.message}</span>
-                  <span className="shrink-0 font-mono text-zinc-400">{location(d)}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={clsx('transition-transform', !collapsed[rule] && 'rotate-90')}>
+                    <path d="m9 6 6 6-6 6" />
+                  </svg>
+                  {rule}
+                  <span className="tabular-nums opacity-70">{rows.length}</span>
                 </button>
-              </li>
+                {!collapsed[rule] && (
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {rows.map((d) => (
+                      <li key={d.id}>
+                        <button
+                          type="button"
+                          data-testid="problem-row"
+                          data-severity={d.severity}
+                          onClick={() => {
+                            gotoDiagnostic(d)
+                            const view = SOURCE_VIEW[d.source]
+                            if (view) onGoto?.(view)
+                          }}
+                          className="flex w-full items-start gap-2 px-2 py-1.5 pl-6 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                          <SeverityIcon severity={d.severity} />
+                          <span className="flex-1 leading-relaxed text-zinc-800 dark:text-zinc-100">
+                            <Message text={d.message} />
+                          </span>
+                          {d.lossy && (
+                            <span className="shrink-0 rounded bg-sky-100 px-1 text-[10px] text-sky-700 dark:bg-sky-900 dark:text-sky-200">lossy</span>
+                          )}
+                          <span className="shrink-0 font-mono text-[11px] text-zinc-400">{location(d)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>

@@ -32,17 +32,19 @@ async function importOk(sql: string, dialect: Parameters<typeof importSql>[1]): 
 const sqlView = (text: string): Schema => normalizeForSql(parseOk(text)).schema
 
 describe('importSql', () => {
+  // @dbml/core is ~15 MB and is loaded on demand by the SQL path; the first import in a cold,
+  // loaded test run can take well over the default timeout.
   it('imports sql/ecommerce.postgres.sql to the same Schema as ecommerce.dbml (ignoring ids)', async () => {
     const fromSql = await importOk(ecommercePg, 'postgres')
     expect(canonical(fromSql)).toEqual(canonical(parseOk(ecommerce)))
-  })
+  }, 30_000)
 
   it('auto-detects the dialect and reports which one it used', async () => {
     const r = await importSql(ecommercePg, 'auto')
     expect(r.dialect).toBe('postgres')
     expect(r.schema).toBeDefined()
     expect((await importSql(blogMysql, 'auto')).dialect).toBe('mysql')
-  })
+  }, 30_000)
 
   it('returns canonical DBML that our parser accepts and our generator reproduces byte-for-byte', async () => {
     const r = await importSql(ecommercePg, 'postgres')

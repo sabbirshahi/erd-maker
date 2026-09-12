@@ -21,7 +21,7 @@ Table courses {
   code varchar(16) [not null, unique]
   title varchar(200) [not null]
   credits int [not null, default: 3]
-  teacher_id int [ref: > teachers.id]
+  teacher_id int [not null, ref: > teachers.id]
 }
 
 Table terms {
