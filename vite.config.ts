@@ -11,7 +11,7 @@ const { version } = createRequire(import.meta.url)('./package.json') as { versio
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   define: { __APP_VERSION__: JSON.stringify(version) },
-  resolve: { alias: { '@': path.resolve(__dirname, 'src') } },
+  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   worker: { format: 'es' },
   optimizeDeps: { exclude: ['web-tree-sitter'] },
   build: {
@@ -19,10 +19,11 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         // Vite 8 (Rolldown): `manualChunks` is a compat shim that ignored our @dbml/parse group and
-        // folded it into the @dbml/core chunk. `advancedChunks` is the native API. The 15 MB SQL
-        // engine (@dbml/core) must stay apart from the small DBML compiler (@dbml/parse): only
-        // src/core/sql loads @dbml/core, via dynamic import().
-        advancedChunks: {
+        // folded it into the @dbml/core chunk, and `advancedChunks` is now deprecated in favour of
+        // `codeSplitting`, which takes the same shape. The 15 MB SQL engine (@dbml/core) must stay
+        // apart from the small DBML compiler (@dbml/parse): only src/core/sql loads @dbml/core, via
+        // dynamic import().
+        codeSplitting: {
           groups: [
             { name: 'dbml-core', test: /node_modules[\\/]@dbml[\\/]core[\\/]/ },
             { name: 'dbml-parse', test: /node_modules[\\/]@dbml[\\/]parse[\\/]/ },
