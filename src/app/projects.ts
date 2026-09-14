@@ -38,6 +38,31 @@ export interface ProjectState {
   dbmlText: string | null
 }
 
+/**
+ * The index is shared mutable state: the diagram menu reads it, but restore, autosave and the
+ * project actions all write it, from three different components. Without a notification a writer's
+ * change was invisible until the page reloaded — restoring a backup said "3 diagrams imported" and
+ * then showed none of them. Readers subscribe here instead of caching a list at mount.
+ */
+let revision = 0
+const listeners = new Set<() => void>()
+
+export function subscribeProjects(onChange: () => void): () => void {
+  listeners.add(onChange)
+  return () => void listeners.delete(onChange)
+}
+
+/** Changes on every index write; a stable value to hang useSyncExternalStore off. */
+export function projectsRevision(): number {
+  return revision
+}
+
+function announce(): void {
+  revision++
+  // Copied: a listener may unsubscribe while being notified.
+  for (const l of [...listeners]) l()
+}
+
 const emptyIndex = (): ProjectIndex => ({ v: INDEX_VERSION, activeId: null, projects: [] })
 const projectKey = (id: string) => `${PROJECT_KEY_PREFIX}${id}`
 const now = () => new Date().toISOString()
@@ -84,7 +109,9 @@ export function readIndex(storage: Storage = localStorage): ProjectIndex {
 }
 
 export function writeIndex(index: ProjectIndex, storage: Storage = localStorage): boolean {
-  return write(storage, INDEX_KEY, { ...index, v: INDEX_VERSION })
+  const ok = write(storage, INDEX_KEY, { ...index, v: INDEX_VERSION })
+  if (ok) announce()
+  return ok
 }
 
 /** Projects newest-updated first. */
@@ -115,11 +142,13 @@ export function createProject(
   name = DEFAULT_PROJECT_NAME,
   state: ProjectState | null = null,
   storage: Storage = localStorage,
+  /** Restore adds diagrams in bulk and must leave the user on the one they were editing. */
+  activate = true,
 ): ProjectMeta {
   const meta: ProjectMeta = { id: nanoid(10), name: name.trim() || DEFAULT_PROJECT_NAME, createdAt: now(), updatedAt: now() }
   const index = readIndex(storage)
   index.projects.push(meta)
-  index.activeId = meta.id
+  if (activate || index.activeId === null) index.activeId = meta.id
   writeIndex(index, storage)
   if (state) write(storage, projectKey(meta.id), serializeDoc(state))
   return meta

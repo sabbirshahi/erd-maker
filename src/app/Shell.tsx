@@ -293,11 +293,13 @@ export function Shell() {
   const restoreFromFile = async (file: File) => {
     try {
       const { imported, skipped } = restoreBackup(await file.text())
-      setActiveId((id) => id) // the menu re-reads the list on its next open
+      // The diagram on screen is deliberately left alone, so say where the restored ones went —
+      // otherwise a successful restore looks like nothing happened.
+      const n = `${imported} ${imported === 1 ? 'diagram' : 'diagrams'}`
       toast(
         skipped > 0
-          ? `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported, ${skipped} unreadable`
-          : `${imported} ${imported === 1 ? 'diagram' : 'diagrams'} imported`,
+          ? `${n} restored (${skipped} unreadable) — open them from the diagram menu`
+          : `${n} restored — open them from the diagram menu`,
       )
     } catch (err) {
       toast(err instanceof BackupError ? err.message : 'Could not read that backup file.', 'error')

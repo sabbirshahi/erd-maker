@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { buildBackup, backupFilename, restoreBackup, serializeBackup, BackupError, BACKUP_VERSION } from './backup'
-import { createProject, listProjects, readProject } from './projects'
+import { createProject, listProjects, readIndex, readProject, subscribeProjects } from './projects'
 import { emptySchema, newTable, type Schema } from '@/core/schema'
 
 function memStorage(): Storage {
@@ -93,5 +93,58 @@ describe('backup', () => {
 
   it('names the file by date so downloads sort chronologically', () => {
     expect(backupFilename(new Date('2026-09-12T10:00:00Z'))).toBe('dbridge-backup-2026-09-12.json')
+  })
+
+  /**
+   * Restore used to activate each diagram it created. The running session stayed on the project it
+   * had open, so the index and the app disagreed about which diagram was current and the next
+   * reload opened the wrong one.
+   */
+  it('leaves the diagram the user was editing active', () => {
+    const working = createProject('Working on this', { schema: schemaWith('kept'), layout: {}, dbmlText: null }, storage)
+    expect(readIndex(storage).activeId).toBe(working.id)
+
+    const file = serializeBackup({
+      v: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      appVersion: '0.0.0',
+      projects: [
+        { name: 'From backup A', createdAt: '', updatedAt: '', doc: null },
+        { name: 'From backup B', createdAt: '', updatedAt: '', doc: null },
+      ],
+    })
+    expect(restoreBackup(file, storage)).toEqual({ imported: 2, skipped: 0 })
+
+    expect(readIndex(storage).activeId).toBe(working.id)
+    expect(listProjects(storage)).toHaveLength(3)
+  })
+
+  it('activates a restored diagram when the browser had none', () => {
+    const file = serializeBackup({
+      v: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      appVersion: '0.0.0',
+      projects: [{ name: 'Only one', createdAt: '', updatedAt: '', doc: null }],
+    })
+    restoreBackup(file, storage)
+    expect(readIndex(storage).activeId).toBe(listProjects(storage)[0].id)
+  })
+
+  /** Without this the diagram menu kept a list captured at mount and a restore looked like a no-op. */
+  it('tells subscribers that the project list changed', () => {
+    let calls = 0
+    const stop = subscribeProjects(() => calls++)
+    try {
+      const file = serializeBackup({
+        v: BACKUP_VERSION,
+        exportedAt: new Date().toISOString(),
+        appVersion: '0.0.0',
+        projects: [{ name: 'Restored', createdAt: '', updatedAt: '', doc: null }],
+      })
+      restoreBackup(file, storage)
+      expect(calls).toBeGreaterThan(0)
+    } finally {
+      stop()
+    }
   })
 })

@@ -8,7 +8,7 @@
  * reports when that last happened ("Saved 2m ago") instead of asking the user to do it. Ctrl+S
  * still forces an immediate write, and the label itself becomes the way out of a save conflict.
  */
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useSchemaStore } from '@/store'
 import { emptySchema } from '@/core/schema'
 import { Menu } from './ui'
@@ -18,9 +18,10 @@ import {
   deleteProject,
   duplicateProject,
   listProjects,
+  projectsRevision,
   readProject,
   renameProject,
-  type ProjectMeta,
+  subscribeProjects,
 } from './projects'
 import { setTabProject } from './session'
 import type { SaveController, SaveStatus } from './saveController'
@@ -91,7 +92,11 @@ export interface ProjectMenuProps {
 }
 
 export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMenuProps) {
-  const [projects, setProjects] = useState<ProjectMeta[]>(() => listProjects())
+  // Restore and autosave write the index from outside this component, so the list is read from the
+  // store on every change rather than captured once. Caching it meant a restored backup never
+  // appeared until the page was reloaded.
+  const revision = useSyncExternalStore(subscribeProjects, projectsRevision, projectsRevision)
+  const projects = useMemo(() => listProjects(), [revision])
   const [renaming, setRenaming] = useState(false)
   const renameInput = useRef<HTMLInputElement>(null)
 
@@ -112,7 +117,6 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
     if (renaming) renameInput.current?.select()
   }, [renaming])
 
-  const refresh = useCallback(() => setProjects(listProjects()), [])
   const active = projects.find((p) => p.id === activeId) ?? null
 
   /** Save the current project, then put `id`'s document into the store. */
@@ -129,9 +133,8 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
           : { schema: emptySchema(), layout: {} },
       )
       onActiveChange(id)
-      refresh()
     },
-    [activeId, controller, onActiveChange, refresh],
+    [activeId, controller, onActiveChange],
   )
 
   const newProject = useCallback(() => {
@@ -141,9 +144,8 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
     controller.setProject(meta.id)
     useSchemaStore.getState().load({ schema: emptySchema(), layout: {} })
     onActiveChange(meta.id)
-    refresh()
     toast(`Created ${meta.name}`)
-  }, [controller, onActiveChange, refresh])
+  }, [controller, onActiveChange])
 
   const duplicate = useCallback(() => {
     controller.save()
@@ -152,15 +154,13 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
     setTabProject(copy.id)
     controller.setProject(copy.id)
     onActiveChange(copy.id)
-    refresh()
     toast(`Duplicated to ${copy.name}`)
-  }, [activeId, controller, onActiveChange, refresh])
+  }, [activeId, controller, onActiveChange])
 
   const remove = useCallback(() => {
     if (!active) return
     if (!window.confirm(`Delete “${active.name}”? This cannot be undone.`)) return
     const nextId = deleteProject(activeId)
-    const remaining = listProjects()
     if (nextId) {
       const doc = readProject(nextId)
       setTabProject(nextId)
@@ -176,10 +176,8 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
       useSchemaStore.getState().load({ schema: emptySchema(), layout: {} })
       onActiveChange(meta.id)
     }
-    setProjects(remaining)
-    refresh()
     toast(`Deleted ${active.name}`)
-  }, [active, activeId, controller, onActiveChange, refresh])
+  }, [active, activeId, controller, onActiveChange])
 
   const commitRename = useCallback(
     (name: string) => {
@@ -187,9 +185,8 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
       const trimmed = name.trim()
       if (!trimmed || !active || trimmed === active.name) return
       renameProject(activeId, trimmed)
-      refresh()
     },
-    [active, activeId, refresh],
+    [active, activeId],
   )
 
   /**
@@ -250,7 +247,7 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
               id: `project-${p.id}`,
               label: (
                 <span className="flex items-center gap-2 pl-1">
-                  <span className={p.id === activeId ? '' : 'opacity-0'} style={{ color: 'var(--erd-accent)' }}>
+                  <span className={p.id === activeId ? '' : 'opacity-0'} style={{ color: 'var(--erd-accent)' }} aria-hidden>
                     ✓
                   </span>
                   <span className="truncate">{p.name}</span>

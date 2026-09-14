@@ -104,7 +104,10 @@ export function restoreBackup(raw: string | unknown, storage: Storage = localSto
       skipped++
       continue
     }
-    createProject(entry.name, doc ? { schema: doc.schema, layout: doc.layout, dbmlText: doc.dbmlText } : null, storage)
+    // Not activated: a restored diagram must not silently replace the one on screen. Activating it
+    // left the running session editing a different project than the index pointed at, so the next
+    // reload opened something other than what the user was looking at.
+    createProject(entry.name, doc ? { schema: doc.schema, layout: doc.layout, dbmlText: doc.dbmlText } : null, storage, false)
     imported++
   }
 

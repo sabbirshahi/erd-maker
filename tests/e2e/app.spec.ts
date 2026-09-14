@@ -203,17 +203,35 @@ test.describe('workspace backup', () => {
       JSON.parse(localStorage.getItem('dbridge:projects:v1')!).projects.length,
     )
 
+    const openBefore = await page.getByTestId('project-name').innerText()
+
     // Restoring the same file adds copies; the originals stay put.
     await openMoreMenu(page)
     await page.getByTestId('menu-backup-restore').click()
     await page.getByTestId('restore-backup-input').setInputFiles(file)
-    await expect(toastWith(page, 'imported')).toBeVisible()
+    await expect(toastWith(page, 'restored')).toBeVisible()
 
     const diagramsAfter = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('dbridge:projects:v1')!).projects.length,
     )
     expect(diagramsAfter).toBe(diagramsBefore * 2)
     // The diagram on screen is untouched by the restore.
+    expect(await page.evaluate(() => window.__erd!.store.getState().schema.tables.length)).toBe(before)
+
+    // Restoring used to write straight to localStorage without telling the menu, so a successful
+    // restore showed nothing until the page was reloaded and looked like it had silently failed.
+    await page.getByTestId('btn-project').click()
+    await expect(page.locator('[data-testid^="menu-project-"]').filter({ hasText: openBefore })).toHaveCount(
+      diagramsAfter,
+    )
+    await page.keyboard.press('Escape')
+    expect(await page.getByTestId('project-name').innerText()).toBe(openBefore)
+
+    // ...and it also made the last restored copy active, so a reload opened a different diagram
+    // than the one the user was looking at.
+    await page.reload()
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+    expect(await page.getByTestId('project-name').innerText()).toBe(openBefore)
     expect(await page.evaluate(() => window.__erd!.store.getState().schema.tables.length)).toBe(before)
   })
 
