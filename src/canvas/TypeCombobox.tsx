@@ -110,7 +110,7 @@ export function TypeCombobox({ value, onChange, suggestions, inputRef, className
         <ul
           id={listId}
           role="listbox"
-          className="absolute left-0 top-full z-20 mt-0.5 max-h-44 w-max min-w-full overflow-auto rounded border border-zinc-200 bg-white py-0.5 font-mono text-xs shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+          className="erd-combo__list"
           data-testid="type-suggestions"
         >
           {filtered.map((s, i) => (
@@ -119,10 +119,7 @@ export function TypeCombobox({ value, onChange, suggestions, inputRef, className
               id={`${listId}-${i}`}
               role="option"
               aria-selected={i === active}
-              className={clsx(
-                'cursor-pointer px-2 py-0.5',
-                i === active ? 'bg-indigo-500 text-white' : 'hover:bg-zinc-100 dark:hover:bg-zinc-700',
-              )}
+              className="erd-combo__opt"
               onMouseDown={(e) => {
                 e.preventDefault() // keep input focus
                 pick(s)

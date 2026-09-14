@@ -135,7 +135,7 @@ const baseTheme = EditorView.theme({
     padding: '10px 12px',
     margin: '0',
     borderLeft: '3px solid transparent',
-    background: 'var(--erd-surface, #fff)',
+    background: 'var(--erd-surface)',
     color: 'var(--erd-text)',
     fontFamily: 'inherit',
     fontSize: '12.5px',
@@ -175,7 +175,8 @@ const baseTheme = EditorView.theme({
     marginTop: '10px',
     background: 'var(--erd-accent)',
     borderColor: 'var(--erd-accent)',
-    color: '#fff',
+    // Not white: the dark accent is a light indigo, so white on it fails contrast.
+    color: 'var(--erd-on-accent)',
   },
   '.cm-diagnosticAction:first-of-type:hover': { background: 'var(--erd-accent-hover)', borderColor: 'var(--erd-accent-hover)' },
   // The source tag ("dbml") adds noise next to a message that already says what is wrong.

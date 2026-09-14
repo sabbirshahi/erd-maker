@@ -34,9 +34,9 @@ export function DbmlEditor({ className }: DbmlEditorProps) {
 
   return (
     <div className={className ?? 'flex h-full min-h-0 flex-col'} data-testid="dbml-pane">
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-2 py-1 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-        <span className="font-medium">DBML</span>
-        <span data-testid="dbml-status" className="text-zinc-400">
+      <div className="erd-bar">
+        <span className="erd-bar__title">DBML</span>
+        <span data-testid="dbml-status" className="erd-muted">
           {sync.dirty ? 'syncing…' : errors ? `${errors} error${errors === 1 ? '' : 's'}` : warnings ? `${warnings} warning${warnings === 1 ? '' : 's'}` : 'synced'}
         </span>
         <span className="flex-1" />

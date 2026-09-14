@@ -54,11 +54,7 @@ export function CopyButton({ text, label, className, size = 'sm', children }: Co
       data-testid={`copy-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
       aria-label={`Copy ${label}`}
       title={`Copy ${label}`}
-      className={clsx(
-        'inline-flex items-center gap-1 rounded border border-zinc-300 bg-white font-medium text-zinc-700 hover:bg-zinc-100 active:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700',
-        size === 'sm' ? 'h-6 px-2 text-xs' : 'h-8 px-3 text-sm',
-        className,
-      )}
+      className={clsx('erd-b erd-b--outline', size === 'sm' && 'erd-b--sm', className)}
     >
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <rect x="9" y="9" width="13" height="13" rx="2" />

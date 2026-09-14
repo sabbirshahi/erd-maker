@@ -11,6 +11,7 @@ import { CodeMirrorEditor, type CodeMirrorEditorHandle } from './CodeMirrorEdito
 import { useTextSync } from './useTextSync'
 import { CopyButton } from '@/app/CopyButton'
 import { useGotoLine } from './goto'
+import { Button } from '@/app/ui'
 
 export interface DjangoEditorProps {
   className?: string
@@ -69,22 +70,21 @@ export function DjangoEditor({ className }: DjangoEditorProps) {
 
   return (
     <div className={className ?? 'flex h-full min-h-0 flex-col'} data-testid="django-pane">
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-2 py-1 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
-        <span className="font-medium">models.py</span>
-        <span data-testid="django-status" className="text-zinc-400">
+      <div className="erd-bar">
+        <span className="erd-bar__title">models.py</span>
+        <span data-testid="django-status" className="erd-muted">
           {sync.dirty ? 'syncing…' : errors ? `${errors} error${errors === 1 ? '' : 's'}` : 'synced'}
         </span>
         <span className="flex-1" />
-        <button
-          type="button"
+        <Button
+          size="sm"
           data-testid="django-readonly-toggle"
           aria-pressed={readOnly}
           onClick={() => setReadOnly((v) => !v)}
-          className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           title={readOnly ? 'Enable editing' : 'Make read-only'}
         >
           {readOnly ? 'Read-only' : 'Editable'}
-        </button>
+        </Button>
         <CopyButton text={() => sync.text} label="models.py" />
       </div>
       <div className="min-h-0 flex-1">

@@ -41,7 +41,7 @@ export function ExampleThumb({ dbml, className }: { dbml: string; className?: st
         const p = centers[a]
         const q = centers[b]
         if (!p || !q) return null
-        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className="stroke-indigo-400/70" strokeWidth={1.2} />
+        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className="erd-thumb__ref" strokeWidth={1.2} />
       })}
       {sketch.tables.map((t, i) => {
         const c = centers[i]
@@ -50,10 +50,10 @@ export function ExampleThumb({ dbml, className }: { dbml: string; className?: st
         const y = c.y - boxH / 2
         return (
           <g key={t.name}>
-            <rect x={x} y={y} width={boxW} height={boxH} rx={2} className="fill-white stroke-zinc-300 dark:fill-zinc-800 dark:stroke-zinc-600" />
-            <rect x={x} y={y} width={boxW} height={5} rx={2} className="fill-indigo-500" />
+            <rect x={x} y={y} width={boxW} height={boxH} rx={2} className="erd-thumb__box" />
+            <rect x={x} y={y} width={boxW} height={5} rx={2} className="erd-thumb__cap" />
             {Array.from({ length: Math.min(t.columns, 6) }).map((_, k) => (
-              <rect key={k} x={x + 4} y={y + 8 + k * 4} width={boxW * 0.6} height={1.5} className="fill-zinc-300 dark:fill-zinc-600" />
+              <rect key={k} x={x + 4} y={y + 8 + k * 4} width={boxW * 0.6} height={1.5} className="erd-thumb__line" />
             ))}
           </g>
         )
@@ -78,15 +78,15 @@ export function ExamplesGallery({ open, onClose }: { open: boolean; onClose: () 
                   if (ok) onClose()
                 })
               }}
-              className="group flex flex-col overflow-hidden rounded-lg border border-zinc-200 text-left transition hover:border-indigo-400 hover:shadow-md dark:border-zinc-700 dark:hover:border-indigo-400"
+              className="erd-card"
             >
-              <div className="bg-zinc-50 p-2 dark:bg-zinc-950">
+              <div className="erd-card__thumb">
                 <ExampleThumb dbml={ex.dbml} className="h-24 w-full" />
               </div>
-              <div className="flex flex-1 flex-col gap-0.5 p-3">
-                <div className="text-sm font-medium">{ex.title}</div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">{ex.description}</div>
-                <div className="mt-auto pt-2 text-[11px] text-zinc-400">
+              <div className="erd-card__body">
+                <div className="erd-card__title">{ex.title}</div>
+                <div className="erd-card__desc">{ex.description}</div>
+                <div className="erd-card__meta">
                   {sk.tables.length} tables · {sk.refs.length} refs
                 </div>
               </div>

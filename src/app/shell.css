@@ -667,3 +667,317 @@
   text-decoration: none;
 }
 .erd-embed__mark:hover { color: var(--erd-text); }
+
+/* =============================================================================
+   Secondary surfaces — import/export dialogs, the demo panel, the editor panes.
+   These were the last places still colouring themselves from Tailwind's palette,
+   which bypassed the tokens: every one of them had to be re-checked by hand in
+   dark mode, and several drifted (blue accents where the product accent is
+   indigo). Everything below reads the same custom properties as the rest of the
+   shell, so both themes follow from src/tokens.css alone.
+   ============================================================================= */
+
+/* ---- strips: pane headers, toolbars, footers ---- */
+.erd-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--erd-space-4);
+  padding: var(--erd-space-3) var(--erd-space-5);
+  border-bottom: var(--erd-hairline-width) solid var(--erd-hairline);
+  font-size: var(--erd-fs-sm);
+  color: var(--erd-text-muted);
+}
+.erd-bar--top {
+  border-bottom: 0;
+  border-top: var(--erd-hairline-width) solid var(--erd-hairline);
+}
+.erd-bar--wrap { flex-wrap: wrap; }
+.erd-bar__title { color: var(--erd-text); font-weight: var(--erd-weight-medium); }
+
+/* ---- text roles ---- */
+.erd-muted { color: var(--erd-text-muted); }
+.erd-fg { color: var(--erd-text); }
+.erd-sev-error { color: var(--erd-danger-text); }
+.erd-sev-warning { color: var(--erd-warning-text); }
+.erd-sev-ok { color: var(--erd-success-text); }
+
+/* ---- form controls ---- */
+.erd-field {
+  height: var(--erd-control-h);
+  padding: 0 var(--erd-space-4);
+  border: var(--erd-hairline-width) solid var(--erd-hairline-strong);
+  border-radius: var(--erd-radius-control);
+  background: var(--erd-surface);
+  color: var(--erd-text);
+  font-family: inherit;
+  font-size: var(--erd-fs-sm);
+  outline: none;
+}
+.erd-field--sm { height: 24px; padding: 0 var(--erd-space-3); }
+textarea.erd-field { height: auto; padding: var(--erd-space-4); }
+.erd-field:focus-visible {
+  border-color: var(--erd-accent);
+  outline: var(--erd-focus-width) solid var(--erd-focus);
+  outline-offset: var(--erd-focus-offset);
+}
+.erd-field::placeholder { color: var(--erd-text-subtle); }
+.erd-range { accent-color: var(--erd-accent); }
+.erd-range:focus-visible,
+.erd-check:focus-visible {
+  outline: var(--erd-focus-width) solid var(--erd-focus);
+  outline-offset: var(--erd-focus-offset);
+}
+.erd-check { accent-color: var(--erd-accent); }
+
+/* ---- bordered container (code preview, drop target) ---- */
+.erd-frame {
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-control);
+  overflow: hidden;
+}
+.erd-dropzone {
+  position: relative;
+  border: var(--erd-hairline-width) solid var(--erd-hairline-strong);
+  border-radius: var(--erd-radius-control);
+  background: var(--erd-surface);
+  transition: border-color var(--erd-transition), background var(--erd-transition);
+}
+.erd-dropzone--over {
+  border-color: var(--erd-accent);
+  background: var(--erd-accent-soft);
+}
+.erd-dropzone__text {
+  display: block;
+  width: 100%;
+  min-height: 16rem;
+  resize: vertical;
+  padding: var(--erd-space-5);
+  border: 0;
+  background: transparent;
+  color: var(--erd-text);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
+  line-height: 1.6;
+  outline: none;
+}
+.erd-dropzone__text::placeholder { color: var(--erd-text-subtle); }
+.erd-dropzone__hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--erd-accent-text);
+  font-weight: var(--erd-weight-medium);
+}
+
+/* ---- diagnostics ---- */
+.erd-note {
+  padding: var(--erd-space-3) var(--erd-space-4);
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-chip);
+  background: var(--erd-surface-2);
+  color: var(--erd-text);
+  font-size: var(--erd-fs-sm);
+}
+.erd-note--error {
+  border-color: color-mix(in srgb, var(--erd-danger) 40%, transparent);
+  background: var(--erd-danger-soft);
+  color: var(--erd-danger-text);
+}
+.erd-note--warning {
+  border-color: color-mix(in srgb, var(--erd-warning) 40%, transparent);
+  background: var(--erd-warning-soft);
+  color: var(--erd-warning-text);
+}
+.erd-note__kind { font-weight: var(--erd-weight-medium); }
+.erd-note__snippet {
+  margin: var(--erd-space-2) 0 0;
+  padding: var(--erd-space-1) var(--erd-space-3);
+  overflow-x: auto;
+  border-radius: var(--erd-radius-chip);
+  background: var(--erd-surface);
+  color: var(--erd-text-muted);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
+}
+.erd-lossy {
+  padding: 0 var(--erd-space-2);
+  border-radius: var(--erd-radius-chip);
+  background: var(--erd-surface-2);
+  color: var(--erd-text);
+  font-size: var(--erd-fs-xs);
+}
+
+/* ---- hairline dividers without the bar's padding or flex row ---- */
+.erd-strip { border-bottom: var(--erd-hairline-width) solid var(--erd-hairline); }
+.erd-strip--top { border-top: var(--erd-hairline-width) solid var(--erd-hairline); }
+
+/* ---- inline banner (schema drifted, fatal error) ---- */
+.erd-banner {
+  margin: 0;
+  padding: var(--erd-space-3) var(--erd-space-5);
+  border-bottom: var(--erd-hairline-width) solid var(--erd-hairline);
+  font-size: var(--erd-fs-sm);
+}
+.erd-banner--row { display: flex; align-items: center; gap: var(--erd-space-4); }
+.erd-banner--pre {
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--erd-font-mono);
+}
+.erd-banner--warning {
+  border-bottom-color: color-mix(in srgb, var(--erd-warning) 40%, transparent);
+  background: var(--erd-warning-soft);
+  color: var(--erd-warning-text);
+}
+.erd-banner--danger {
+  border-bottom-color: color-mix(in srgb, var(--erd-danger) 40%, transparent);
+  background: var(--erd-danger-soft);
+  color: var(--erd-danger-text);
+}
+
+/* ---- progress ---- */
+.erd-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-surface-3);
+}
+.erd-progress__fill {
+  height: 100%;
+  border-radius: var(--erd-radius-pill);
+  background: var(--erd-accent);
+  transition: width 0.3s ease;
+}
+
+/* ---- example gallery ---- */
+.erd-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-card);
+  background: var(--erd-surface);
+  color: var(--erd-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--erd-transition);
+}
+.erd-card:hover { border-color: var(--erd-accent); }
+.erd-card:focus-visible {
+  outline: var(--erd-focus-width) solid var(--erd-focus);
+  outline-offset: var(--erd-focus-offset);
+}
+.erd-card__thumb { padding: var(--erd-space-4); background: var(--erd-surface-2); }
+.erd-card__body { display: flex; flex: 1; flex-direction: column; gap: var(--erd-space-1); padding: var(--erd-space-5); }
+.erd-card__title { font-size: var(--erd-fs-md); font-weight: var(--erd-weight-medium); }
+.erd-card__desc { font-size: var(--erd-fs-sm); color: var(--erd-text-muted); }
+.erd-card__meta { margin-top: auto; padding-top: var(--erd-space-4); font-size: var(--erd-fs-xs); color: var(--erd-text-muted); }
+
+/* Thumbnails are SVG, so they take fill/stroke rather than colour utilities. */
+.erd-thumb__ref { stroke: var(--erd-accent); opacity: 0.7; }
+.erd-thumb__box { fill: var(--erd-surface); stroke: var(--erd-hairline-strong); }
+.erd-thumb__cap { fill: var(--erd-accent); }
+.erd-thumb__line { fill: var(--erd-hairline-strong); }
+
+/* ---- empty state over the canvas ---- */
+.erd-empty {
+  width: 100%;
+  padding: var(--erd-space-6);
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-card);
+  background: var(--erd-surface);
+  text-align: center;
+}
+.erd-empty__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--erd-space-5);
+  border-radius: var(--erd-radius-control);
+  background: var(--erd-accent);
+  color: var(--erd-on-accent);
+}
+.erd-empty__title { margin: 0; font-size: var(--erd-fs-lg); font-weight: var(--erd-weight-medium); }
+
+/* ---- combobox suggestions (canvas inspector) ---- */
+.erd-combo__list {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  margin-top: 2px;
+  max-height: 11rem;
+  width: max-content;
+  min-width: 100%;
+  overflow: auto;
+  padding: var(--erd-space-1) 0;
+  border: var(--erd-hairline-width) solid var(--erd-hairline);
+  border-radius: var(--erd-radius-control);
+  background: var(--erd-surface);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
+}
+.erd-combo__opt { padding: var(--erd-space-1) var(--erd-space-4); cursor: pointer; }
+.erd-combo__opt:hover { background: var(--erd-surface-2); }
+.erd-combo__opt[aria-selected='true'] { background: var(--erd-accent); color: var(--erd-on-accent); }
+
+/* ---- demo result grid ---- */
+.erd-grid { width: 100%; border-collapse: collapse; }
+.erd-grid th,
+.erd-grid td {
+  max-width: 18rem;
+  padding: 0 var(--erd-space-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: var(--erd-hairline-width) solid var(--erd-hairline);
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
+  font-weight: var(--erd-weight-normal);
+}
+.erd-grid thead tr { background: var(--erd-surface-2); }
+.erd-grid th {
+  text-align: left;
+  color: var(--erd-text);
+  font-weight: var(--erd-weight-medium);
+  border-bottom-color: var(--erd-hairline-strong);
+}
+.erd-grid tbody tr:nth-child(odd) { background: var(--erd-surface-2); }
+.erd-grid__n { text-align: right; color: var(--erd-text-muted); user-select: none; }
+.erd-grid__null { color: var(--erd-text-subtle); font-style: italic; }
+
+/* ---- read-only code output ---- */
+.erd-out {
+  margin: 0;
+  padding: var(--erd-space-4) var(--erd-space-5);
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--erd-font-mono);
+  font-size: var(--erd-fs-sm);
+  color: var(--erd-text-muted);
+}
+.erd-out--error { color: var(--erd-danger-text); }
+
+/* The import/export dialogs scroll their own body, so they need a column layout
+   and a height cap that the short, self-sizing dialogs (shortcuts, confirm) do not. */
+.erd-modal--flow {
+  display: flex;
+  flex-direction: column;
+  max-height: 84vh;
+  overflow: hidden;
+}
+.erd-modal__body { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: auto; }
+
+/* Tab strip that spans a dialog: same tabs, with the dialog's own gutters. */
+.erd-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--erd-space-1);
+  padding: 0 var(--erd-space-6);
+  border-bottom: var(--erd-hairline-width) solid var(--erd-hairline);
+}

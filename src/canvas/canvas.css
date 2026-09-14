@@ -462,7 +462,9 @@ textarea.erd-input {
   border-radius: var(--erd-radius-pill);
   cursor: pointer;
 }
-.erd-swatch:hover { outline: var(--erd-focus-width) solid var(--erd-focus); outline-offset: var(--erd-focus-offset); }
+.erd-swatch:hover,
+.erd-swatch:focus-visible { outline: var(--erd-focus-width) solid var(--erd-focus); outline-offset: var(--erd-focus-offset); }
+.erd-swatch--on { border-color: var(--erd-text); border-width: 2px; }
 .erd-swatch--none {
   position: relative;
   background: var(--erd-surface-2);

@@ -2,6 +2,7 @@
  * Import dialog (M1 / M3): paste or drop DBML, SQL DDL, or Django models.py.
  */
 import { useCallback, useMemo, useRef, useState, type DragEvent } from 'react'
+import { clsx } from 'clsx'
 import type { Diagnostic, Schema } from '@/core/schema'
 import { parseDbml } from '@/core/dbml'
 import { importSql, type SqlImportDialect } from '@/core/sql'
@@ -11,6 +12,7 @@ import { useSchemaStore } from '@/store'
 import { Modal } from './Modal'
 import { toast } from '@/app/toast'
 import { track } from '@/app/analytics'
+import { Button } from '@/app/ui'
 
 export type ImportKind = 'dbml' | 'sql' | 'django'
 export type ImportDialect = SqlImportDialect | 'auto'
@@ -158,7 +160,7 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
 
   return (
     <Modal open={open} onClose={onClose} title="Import" testId="import-dialog">
-      <div className="flex gap-1 border-b border-zinc-200 px-4 pt-2 dark:border-zinc-800" role="tablist">
+      <div className="erd-tabbar" role="tablist">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -170,11 +172,7 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
               setKind(t.id)
               setDiagnostics([])
             }}
-            className={`-mb-px rounded-t border-b-2 px-3 py-1.5 text-sm ${
-              kind === t.id
-                ? 'border-blue-500 font-medium text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
+            className="erd-tab"
           >
             {t.label}
           </button>
@@ -189,7 +187,7 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`relative rounded border ${dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-zinc-300 dark:border-zinc-700'}`}
+          className={clsx('erd-dropzone', dragging && 'erd-dropzone--over')}
           data-testid="import-dropzone"
         >
           <textarea
@@ -201,16 +199,12 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
             }}
             placeholder={tab.placeholder}
             spellCheck={false}
-            className="block h-64 w-full resize-y bg-transparent p-3 font-mono text-xs outline-none"
+            className="erd-dropzone__text"
           />
-          {dragging && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-blue-600">
-              Drop {tab.label} file
-            </div>
-          )}
+          {dragging && <div className="erd-dropzone__hint">Drop {tab.label} file</div>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileInput}
             type="file"
@@ -223,23 +217,19 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
               e.target.value = ''
             }}
           />
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            className="rounded border border-zinc-300 bg-white px-2.5 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-          >
+          <Button size="sm" onClick={() => fileInput.current?.click()}>
             Choose file…
-          </button>
-          <span className="text-xs text-zinc-500">{fileName ?? `or drop a ${tab.accept.split(',')[0]} file above`}</span>
+          </Button>
+          <span className="erd-muted text-xs">{fileName ?? `or drop a ${tab.accept.split(',')[0]} file above`}</span>
           <span className="flex-1" />
           {kind === 'sql' && (
-            <label className="flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-300">
+            <label className="erd-muted flex items-center gap-2 text-xs">
               Dialect
               <select
                 data-testid="import-dialect"
                 value={dialect}
                 onChange={(e) => setDialect(e.target.value as ImportDialect)}
-                className="rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                className="erd-field erd-field--sm"
               >
                 {DIALECTS.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -249,41 +239,39 @@ export function ImportDialog({ open, onClose, initialKind = 'dbml' }: ImportDial
               </select>
             </label>
           )}
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             data-testid="import-submit"
             disabled={busy}
             onClick={() => void doImport()}
-            className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {busy ? 'Importing…' : 'Import'}
-          </button>
+          </Button>
         </div>
 
         {diagnostics.length > 0 && (
-          <ul data-testid="import-errors" className="max-h-48 space-y-1 overflow-auto text-xs">
+          <ul data-testid="import-errors" className="max-h-48 space-y-1 overflow-auto">
             {diagnostics.map((d) => (
-              <li
-                key={d.id}
-                className={`rounded border px-2 py-1 ${
-                  d.severity === 'error'
-                    ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200'
-                    : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
-                }`}
-              >
+              <li key={d.id} className={clsx('erd-note', d.severity === 'error' ? 'erd-note--error' : 'erd-note--warning')}>
                 <div>
-                  <span className="font-medium">{d.severity}</span>
-                  {d.line !== undefined && <span className="ml-1 text-zinc-500">line {d.line}{d.col !== undefined ? `:${d.col}` : ''}</span>}
+                  <span className="erd-note__kind">{d.severity}</span>
+                  {d.line !== undefined && (
+                    <span className="erd-muted ml-1">
+                      line {d.line}
+                      {d.col !== undefined ? `:${d.col}` : ''}
+                    </span>
+                  )}
                   <span className="ml-2">{d.message}</span>
                 </div>
                 {d.line !== undefined && lines[d.line - 1] !== undefined && (
-                  <pre className="mt-1 overflow-x-auto rounded bg-white/60 px-1.5 py-0.5 font-mono text-[11px] text-zinc-700 dark:bg-black/30 dark:text-zinc-300">
+                  <pre className="erd-note__snippet">
                     {String(d.line).padStart(3)} │ {lines[d.line - 1]}
                   </pre>
                 )}
               </li>
             ))}
-            {errors.length === 0 && <li className="text-zinc-500">Warnings only — import will proceed.</li>}
+            {errors.length === 0 && <li className="erd-muted text-xs">Warnings only — import will proceed.</li>}
           </ul>
         )}
       </div>

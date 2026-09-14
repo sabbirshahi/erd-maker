@@ -44,6 +44,7 @@
   --erd-warning-soft: #fffbeb;
   --erd-warning-text: #92400e;
   --erd-success: #059669;
+  --erd-success-text: #047857;  /* 4.8:1 on --erd-surface; --erd-success itself is only 3.8:1 */
 
   /* ---- table accent palette: six muted hues, legible on both themes ---- */
   --erd-c-indigo: #6366f1;
@@ -144,6 +145,7 @@
   --erd-warning-soft: #422006;
   --erd-warning-text: #fde68a;
   --erd-success: #34d399;
+  --erd-success-text: #34d399;  /* already 9.2:1 on the dark surface */
 
   /* Same hues, lifted so they hold their identity on a near-black ground. */
   --erd-c-indigo: #818cf8;

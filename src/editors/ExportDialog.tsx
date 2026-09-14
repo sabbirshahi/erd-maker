@@ -15,6 +15,7 @@ import { dbml } from './dbml-language'
 import { CopyButton } from '@/app/CopyButton'
 import { Modal } from './Modal'
 import { track } from '@/app/analytics'
+import { Button } from '@/app/ui'
 
 export type ExportFormat = 'dbml' | 'postgres' | 'mysql' | 'sqlite' | 'django' | 'json'
 
@@ -138,7 +139,7 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
 
   return (
     <Modal open={open} onClose={onClose} title="Export" testId="export-dialog" widthClass="max-w-4xl">
-      <div className="flex flex-wrap gap-1 border-b border-zinc-200 px-4 pt-2 dark:border-zinc-800" role="tablist">
+      <div className="erd-tabbar" role="tablist">
         {EXPORT_FORMATS.map((f) => (
           <button
             key={f.id}
@@ -147,27 +148,23 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
             aria-selected={format === f.id}
             data-testid={`export-tab-${f.id}`}
             onClick={() => setFormat(f.id)}
-            className={`-mb-px rounded-t border-b-2 px-3 py-1.5 text-sm ${
-              format === f.id
-                ? 'border-blue-500 font-medium text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-            }`}
+            className="erd-tab"
           >
             {f.label}
           </button>
         ))}
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <div className="erd-muted flex flex-wrap items-center gap-3 text-xs">
           <span data-testid="export-filename">{meta.file}</span>
           {canScope && (
             <label className="flex items-center gap-1" data-testid="export-selection-only">
-              <input type="checkbox" checked={selectionOnly} onChange={(e) => setSelectionOnly(e.target.checked)} />
+              <input className="erd-check" type="checkbox" checked={selectionOnly} onChange={(e) => setSelectionOnly(e.target.checked)} />
               Selected tables only ({selectedIds.length})
             </label>
           )}
           {loading && (
-            <span data-testid="export-loading" className="text-blue-600 dark:text-blue-400">
+            <span data-testid="export-loading" className="erd-fg">
               Generating {meta.label}…
             </span>
           )}
@@ -175,28 +172,28 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
           <span data-testid="export-copy">
             <CopyButton text={text} label={meta.label} />
           </span>
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="sm"
             data-testid="export-download"
             disabled={loading || text === ''}
             onClick={() => {
               track({ name: 'export', format })
               downloadText(meta.file, text, meta.mime)
             }}
-            className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Download
-          </button>
+          </Button>
         </div>
-        <div className="h-[55vh] min-h-48 overflow-hidden rounded border border-zinc-200 dark:border-zinc-800">
+        <div className="erd-frame h-[55vh] min-h-48">
           <CodeMirrorEditor testId="export-preview" value={text} readOnly extensions={extensions} diagnostics={diagnostics} />
         </div>
         {diagnostics.length > 0 && (
           <ul data-testid="export-diagnostics" className="max-h-32 space-y-1 overflow-auto text-xs">
             {diagnostics.map((d) => (
-              <li key={d.id} className={d.severity === 'error' ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-300'}>
-                <span className="font-medium">{d.severity}</span>
-                {d.lossy && <span className="ml-1 rounded bg-zinc-200 px-1 text-[10px] dark:bg-zinc-700">lossy</span>}
+              <li key={d.id} className={d.severity === 'error' ? 'erd-sev-error' : 'erd-sev-warning'}>
+                <span className="erd-note__kind">{d.severity}</span>
+                {d.lossy && <span className="erd-lossy ml-1">lossy</span>}
                 <span className="ml-2">{d.message}</span>
               </li>
             ))}

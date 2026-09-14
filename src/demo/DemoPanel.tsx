@@ -209,10 +209,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
     return (
       <div
         data-testid="demo-unsupported"
-        className={clsx(
-          'flex h-full items-center justify-center p-6 text-center text-sm text-zinc-500',
-          className,
-        )}
+        className={clsx('erd-muted flex h-full items-center justify-center p-6 text-center', className)}
       >
         Demo needs a desktop browser — it downloads a 15 MB Python runtime and runs Django in a Web
         Worker.
@@ -226,7 +223,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
       className={clsx('flex h-full min-h-0 flex-col text-sm', className)}
     >
       {/* Header / status */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <div className="erd-bar erd-bar--wrap">
         {phase === 'idle' || phase === 'failed' ? (
           <Button variant="primary" size="sm" data-testid="demo-start" onClick={() => void start()}>
             {phase === 'failed' ? 'Retry demo' : 'Start demo (≈ 15 MB, first time only)'}
@@ -255,12 +252,8 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
           data-testid="demo-status"
           data-checks={build ? build.checks.length : undefined}
           className={clsx(
-            'ml-auto truncate text-xs',
-            phase === 'ready'
-              ? 'text-emerald-700 dark:text-emerald-400'
-              : phase === 'failed'
-                ? 'text-red-600'
-                : 'text-zinc-500',
+            'ml-auto truncate',
+            phase === 'ready' ? 'erd-sev-ok' : phase === 'failed' ? 'erd-sev-error' : 'erd-muted',
           )}
           title={
             boot
@@ -274,16 +267,16 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
 
       {(phase === 'booting' || phase === 'building') && (
         <div
-          className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800"
+          className="erd-strip erd-muted px-3 py-2 text-xs"
           data-testid="demo-progress"
         >
-          <div className="h-1.5 w-full overflow-hidden rounded bg-zinc-200 dark:bg-zinc-800">
+          <div className="erd-progress">
             <div
-              className="h-full rounded bg-indigo-500 transition-[width] duration-300"
+              className="erd-progress__fill"
               style={{ width: `${progress ? overallPct(progress) : 2}%` }}
             />
           </div>
-          <div className="mt-1 truncate text-xs text-zinc-500">
+          <div className="mt-1 truncate">
             {progress ? `${STAGE_LABEL[progress.stage]} — ${progress.message}` : 'Starting…'}
           </div>
         </div>
@@ -292,7 +285,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
       {build && build.checks.length > 0 && (
         <ul
           data-testid="demo-checks"
-          className="max-h-32 shrink-0 overflow-auto border-b border-zinc-200 px-3 py-1.5 text-xs dark:border-zinc-800"
+          className="erd-strip max-h-32 shrink-0 overflow-auto px-3 py-1.5 text-xs"
         >
           {build.checks.map((c, i) => {
             const isError = c.level === 'ERROR' || c.level === 'CRITICAL'
@@ -300,10 +293,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
               <li
                 key={`${c.id}-${i}`}
                 data-level={c.level}
-                className={clsx(
-                  'flex gap-2 py-0.5',
-                  isError ? 'text-red-700 dark:text-red-300' : 'text-amber-700 dark:text-amber-400',
-                )}
+                className={clsx('flex gap-2 py-0.5', isError ? 'erd-sev-error' : 'erd-sev-warning')}
               >
                 <span className="shrink-0 font-mono">{c.id}</span>
                 <span className="min-w-0 flex-1">
@@ -319,7 +309,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
       {schemaChanged && (
         <div
           data-testid="demo-rebuild-banner"
-          className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
+          className="erd-banner erd-banner--row erd-banner--warning"
         >
           <span className="flex-1">Schema changed since the last build.</span>
           <Button size="sm" data-testid="demo-rebuild" onClick={() => void doBuild()}>
@@ -331,16 +321,16 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
       {fatal && (
         <pre
           data-testid="demo-fatal"
-          className="max-h-40 overflow-auto whitespace-pre-wrap border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+          className="erd-banner erd-banner--danger erd-banner--pre max-h-40"
         >
           {fatal}
         </pre>
       )}
 
       {/* Seed controls */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-zinc-200 px-3 py-2 text-xs dark:border-zinc-800">
+      <div className="erd-bar erd-bar--wrap">
         <label className="flex items-center gap-2">
-          <span className="text-zinc-500">Rows / table</span>
+          <span>Rows / table</span>
           <input
             data-testid="demo-rows"
             type="range"
@@ -349,31 +339,31 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
             step={5}
             value={rows}
             onChange={(e) => setRows(Number(e.target.value))}
-            className="w-28 accent-indigo-600"
+            className="erd-range w-28"
           />
           <span data-testid="demo-rows-value" className="w-8 tabular-nums">
             {rows}
           </span>
         </label>
         <label className="flex items-center gap-2">
-          <span className="text-zinc-500">Seed</span>
+          <span>Seed</span>
           <input
             data-testid="demo-seed"
             type="number"
             value={seed}
             onChange={(e) => setSeed(Number(e.target.value) || 0)}
-            className="h-6 w-20 rounded border border-zinc-300 bg-white px-1 tabular-nums dark:border-zinc-700 dark:bg-zinc-900"
+            className="erd-field erd-field--sm w-20 tabular-nums"
           />
         </label>
         {build && build.fkViolations > 0 && (
-          <span className="text-amber-700 dark:text-amber-400" data-testid="demo-fk-warning">
+          <span className="erd-sev-warning" data-testid="demo-fk-warning">
             {build.fkViolations} FK violation{build.fkViolations === 1 ? '' : 's'} in seed data
           </span>
         )}
       </div>
 
       {/* Tabs + editor */}
-      <div className="flex items-center gap-1 border-b border-zinc-200 px-2 dark:border-zinc-800">
+      <div className="erd-tabbar items-center">
         {(['sql', 'orm'] as Tab[]).map((t) => (
           <button
             key={t}
@@ -382,12 +372,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
             aria-selected={tab === t}
             data-testid={`demo-tab-${t}`}
             onClick={() => setTab(t)}
-            className={clsx(
-              'h-8 border-b-2 px-3 text-xs font-medium',
-              tab === t
-                ? 'border-indigo-600 text-zinc-900 dark:border-indigo-400 dark:text-zinc-50'
-                : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-100',
-            )}
+            className="erd-tab"
           >
             {t === 'sql' ? 'SQL' : 'ORM'}
           </button>
@@ -395,7 +380,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
         {tab === 'orm' && snippets.length > 0 && (
           <select
             data-testid="demo-snippets"
-            className="ml-2 h-6 max-w-64 rounded border border-zinc-300 bg-white px-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+            className="erd-field erd-field--sm ml-2 max-w-64"
             value=""
             onChange={(e) => {
               const s = snippets[Number(e.target.value)]
@@ -422,7 +407,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
           {busy ? 'Running…' : 'Run ▶'}
         </Button>
       </div>
-      <div className="h-32 shrink-0 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="erd-strip h-32 shrink-0">
         <div className={clsx('h-full', tab !== 'sql' && 'hidden')}>
           <CodeMirrorEditor
             value={sqlText}
@@ -449,12 +434,12 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
           <div className="min-h-0 flex-1 overflow-auto">
             <pre
               data-testid="demo-error"
-              className="whitespace-pre-wrap px-3 py-2 font-mono text-xs text-red-700 dark:text-red-300"
+              className="erd-out erd-out--error"
             >
               {error}
             </pre>
             {errorStdout && (
-              <pre className="whitespace-pre-wrap border-t border-zinc-200 px-3 py-2 font-mono text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
+              <pre className="erd-out erd-strip--top">
                 {errorStdout}
               </pre>
             )}
@@ -462,7 +447,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
         ) : result ? (
           <ResultView result={result} />
         ) : (
-          <div className="flex flex-1 items-center justify-center px-6 text-center text-xs text-zinc-400">
+          <div className="erd-muted flex flex-1 items-center justify-center px-6 text-center text-xs">
             {phase === 'ready'
               ? 'Run a query to see results here.'
               : 'Start the demo to run SQL and Django ORM queries against seeded data.'}
@@ -477,7 +462,7 @@ function ResultView({ result }: { result: QueryResult }) {
   const hasGrid = result.columns.length > 0
   return (
     <>
-      <div className="flex items-center gap-2 border-b border-zinc-200 px-3 py-1 text-xs text-zinc-500 dark:border-zinc-800">
+      <div className="erd-bar">
         <span data-testid="demo-rowcount">
           {result.rowcount} {result.rowcount === 1 ? 'row' : 'rows'}
           {result.truncated ? ' (first 1000 shown)' : ''}
@@ -492,20 +477,20 @@ function ResultView({ result }: { result: QueryResult }) {
       {result.stdout ? (
         <pre
           data-testid="demo-stdout"
-          className="max-h-24 shrink-0 overflow-auto whitespace-pre-wrap border-t border-zinc-200 px-3 py-1.5 font-mono text-xs text-zinc-700 dark:border-zinc-800 dark:text-zinc-300"
+          className="erd-out erd-strip--top max-h-24 shrink-0"
         >
           {result.stdout}
         </pre>
       ) : null}
       {result.sql ? (
-        <div className="shrink-0 border-t border-zinc-200 dark:border-zinc-800">
-          <div className="flex items-center px-3 py-1 text-xs text-zinc-500">
+        <div className="erd-strip--top shrink-0">
+          <div className="erd-bar" style={{ borderBottom: 0 }}>
             <span>Generated SQL</span>
             <CopyButton className="ml-auto" label="SQL" text={result.sql} />
           </div>
           <pre
             data-testid="demo-sql-out"
-            className="max-h-28 overflow-auto whitespace-pre-wrap px-3 pb-2 font-mono text-xs text-zinc-700 dark:text-zinc-300"
+            className="erd-out max-h-28"
           >
             {result.sql}
           </pre>
@@ -542,12 +527,10 @@ function Grid({ columns, rows }: { columns: string[]; rows: unknown[][] }) {
   const end = Math.min(rows.length, start + visible)
   const slice = rows.slice(start, end)
 
-  const cell =
-    'max-w-72 truncate border-b border-zinc-100 px-2 font-mono text-xs dark:border-zinc-800'
   if (rows.length === 0) {
     return (
       <div className="flex h-full flex-col" data-testid="demo-result">
-        <div className="px-3 py-2 text-xs text-zinc-400">No rows.</div>
+        <div className="erd-muted px-3 py-2 text-xs">No rows.</div>
       </div>
     )
   }
@@ -565,37 +548,22 @@ function Grid({ columns, rows }: { columns: string[]; rows: unknown[][] }) {
         className="min-h-0 flex-1 overflow-auto"
         onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       >
-        <table className="w-full border-collapse">
+        <table className="erd-grid">
           <thead className="sticky top-0 z-10">
-            <tr style={{ height: ROW_H }} className="bg-zinc-50 dark:bg-zinc-900">
-              <th className={clsx(cell, 'border-b-zinc-200 text-right font-medium text-zinc-400 dark:border-b-zinc-700')}>#</th>
+            <tr style={{ height: ROW_H }}>
+              <th className="erd-grid__n">#</th>
               {columns.map((c) => (
-                <th
-                  key={c}
-                  className={clsx(cell, 'border-b-zinc-200 text-left font-medium text-zinc-600 dark:border-b-zinc-700 dark:text-zinc-300')}
-                >
-                  {c}
-                </th>
+                <th key={c}>{c}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {start > 0 && <tr aria-hidden style={{ height: start * ROW_H }} />}
             {slice.map((r, i) => (
-              <tr
-                key={start + i}
-                style={{ height: ROW_H }}
-                className="odd:bg-zinc-50/60 dark:odd:bg-zinc-900/40"
-              >
-                <td className={clsx(cell, 'text-right text-zinc-400 select-none')}>
-                  {start + i + 1}
-                </td>
+              <tr key={start + i} style={{ height: ROW_H }}>
+                <td className="erd-grid__n">{start + i + 1}</td>
                 {columns.map((c, ci) => (
-                  <td
-                    key={c}
-                    className={clsx(cell, r[ci] === null && 'text-zinc-400 italic')}
-                    title={formatCell(r[ci])}
-                  >
+                  <td key={c} className={clsx(r[ci] === null && 'erd-grid__null')} title={formatCell(r[ci])}>
                     {formatCell(r[ci])}
                   </td>
                 ))}
