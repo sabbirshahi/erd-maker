@@ -4,7 +4,7 @@
  */
 import { clsx } from 'clsx'
 import './shell.css'
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSchemaStore, useAllDiagnostics, undo, redo, type TextView } from '@/store'
 import { isEmbed } from './embed'
 import { EmptyState } from './EmptyState'
@@ -22,6 +22,7 @@ import { shareCurrent } from './share'
 import { useTheme } from './theme'
 import { toast } from './toast'
 import { Button, ErrorBoundary, IconButton, Menu, Tabs } from './ui'
+import { NARROW, STACKED, useMediaQuery } from './useMediaQuery'
 import { useStore } from 'zustand'
 import { track } from './analytics'
 
@@ -36,12 +37,27 @@ interface UiPrefs {
 }
 const defaultPrefs: UiPrefs = { rightWidth: 460, problemsOpen: false, rightCollapsed: false, tab: 'dbml' }
 
+/**
+ * Which pane a first visit opens on.
+ *
+ * On a wide screen both are on show, so the answer does not matter. Below 860px they take turns
+ * and it matters a lot: the code panel covers the canvas, so defaulting to it put a new visitor
+ * in an empty DBML editor with the "start from an example" card hidden behind it. The diagram is
+ * the thing to land on; the panel is one tap away.
+ *
+ * Only a default — a stored preference always wins, so this never overrides a choice.
+ */
+function startsCollapsed(): boolean {
+  return typeof window !== 'undefined' && Boolean(window.matchMedia?.(STACKED).matches)
+}
+
 function readPrefs(): UiPrefs {
+  const base = { ...defaultPrefs, rightCollapsed: startsCollapsed() }
   try {
     const raw = localStorage.getItem(UI_KEY)
-    return raw ? { ...defaultPrefs, ...(JSON.parse(raw) as Partial<UiPrefs>) } : defaultPrefs
+    return raw ? { ...base, ...(JSON.parse(raw) as Partial<UiPrefs>) } : base
   } catch {
-    return defaultPrefs
+    return base
   }
 }
 function writePrefs(p: UiPrefs) {
@@ -308,6 +324,11 @@ export function Shell() {
 
   const showEmpty = tableCount === 0 && !blankDismissed
   const problemsCount = diagnostics.length
+  // Below this width the bar cannot hold every control, so some of them move into the More menu.
+  const narrow = useMediaQuery(NARROW)
+  // Below this the panes take turns, so the status line at the foot of the code panel is off
+  // screen whenever the canvas is the one showing.
+  const stacked = useMediaQuery(STACKED)
 
   return (
     <div className="erd-app" data-testid="shell">
@@ -367,19 +388,36 @@ export function Shell() {
               { id: 'more-all', label: <span className="erd-menu__section erd-menu__section--border">All diagrams</span>, disabled: true, onSelect: () => {} },
               { id: 'backup-download', label: 'Download backup…', onSelect: downloadBackup },
               { id: 'backup-restore', label: 'Restore from backup…', onSelect: () => restoreInput.current?.click() },
+              // Export and the theme toggle leave the bar on a narrow screen; they are only
+              // listed here when they are not on it, so neither is reachable twice.
+              ...(narrow
+                ? [
+                    { id: 'more-export', label: <span className="erd-menu__section erd-menu__section--border">Export</span>, disabled: true, onSelect: () => {} },
+                    { id: 'narrow-export-dialog', label: 'DBML, SQL or models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
+                    { id: 'narrow-export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng() } },
+                    { id: 'narrow-export-svg', label: 'Export SVG', onSelect: () => { track({ name: 'export', format: 'svg' }); void exportCanvasSvg() } },
+                    { id: 'more-view', label: <span className="erd-menu__section erd-menu__section--border">View</span>, disabled: true, onSelect: () => {} },
+                    { id: 'narrow-theme', label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', onSelect: toggleTheme },
+                  ]
+                : []),
               { id: 'more-help', label: <span className="erd-menu__section erd-menu__section--border">Help</span>, disabled: true, onSelect: () => {} },
               { id: 'shortcuts', label: 'Keyboard shortcuts', hint: '?', onSelect: () => setShortcuts(true) },
             ]}
           />
 
-          <IconButton label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} data-testid="btn-theme" onClick={toggleTheme}>
+          <IconButton
+            label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="erd-wide-only"
+            data-testid="btn-theme"
+            onClick={toggleTheme}
+          >
             {theme === 'dark' ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
             ) : (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
             )}
           </IconButton>
-          <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub" title="GitHub" className="erd-iconbtn">
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" aria-label="GitHub" title="GitHub" className="erd-iconbtn erd-wide-only">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z" /></svg>
           </a>
 
@@ -387,7 +425,7 @@ export function Shell() {
             align="right"
             testId="export-menu"
             trigger={({ onClick }) => (
-              <Button variant="outline" data-testid="btn-export" onClick={onClick} className="ml-1">
+              <Button variant="outline" data-testid="btn-export" onClick={onClick} className="ml-1 erd-wide-only">
                 Export
               </Button>
             )}
@@ -405,8 +443,9 @@ export function Shell() {
         </div>
       </header>
 
-      {/* Main split */}
-      <div className="flex min-h-0 flex-1">
+      {/* Main split. Side by side when there is room; below NARROW the panes take turns and the
+          code panel covers the canvas instead of squeezing it. */}
+      <div className="erd-main flex min-h-0 flex-1">
         <section className="relative min-w-0 flex-1" data-testid="canvas-pane">
           <Pane name="Canvas">
             <Canvas />
@@ -422,6 +461,20 @@ export function Shell() {
 
         {prefs.rightCollapsed ? (
           <div className="erd-rail" data-testid="right-rail">
+            {/* The status line lives at the foot of the code panel, so while the panel is off
+                screen nothing would report a broken schema. This is that report, and it opens the
+                panel on the problems list. */}
+            {stacked && problemsCount > 0 && (
+              <button
+                type="button"
+                className={clsx('erd-railbadge', counts.error > 0 ? 'erd-railbadge--error' : 'erd-railbadge--warning')}
+                data-testid="rail-problems"
+                aria-label={`${problemsCount} ${problemsCount === 1 ? 'problem' : 'problems'}, open the code panel`}
+                onClick={() => patchPrefs({ rightCollapsed: false, problemsOpen: true })}
+              >
+                {problemsCount}
+              </button>
+            )}
             <IconButton label="Show code panel" data-testid="btn-expand-right" onClick={() => patchPrefs({ rightCollapsed: false })}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m14 6-6 6 6 6" /></svg>
             </IconButton>
@@ -440,7 +493,12 @@ export function Shell() {
               onKeyDown={onDividerKey}
             />
 
-            <aside className="erd-rightpane" style={{ width: prefs.rightWidth }} data-testid="right-pane">
+            <aside
+              className="erd-rightpane"
+              /* Not `width`: an inline width would outrank the narrow layout's rule. */
+              style={{ '--erd-pane-w': `${prefs.rightWidth}px` } as CSSProperties}
+              data-testid="right-pane"
+            >
               <div className="erd-rightpane__head">
                 <Tabs<RightTab>
                   value={prefs.tab}

@@ -127,6 +127,11 @@ test.describe('app shell', () => {
     await openExamples(page)
     await page.getByTestId('example-blog').click()
     await expect(page.getByTestId('table-node')).toHaveCount(4)
+    // toHaveCount only proves the nodes are mounted. The export rasterises what is painted, so
+    // firing it mid-fitView produced a near-empty PNG and tripped the size check below — rarely
+    // alone, often once the suite runs enough tests in parallel to slow a worker down.
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
     await page.getByTestId('btn-export').click()
     const download = page.waitForEvent('download')
     await page.getByTestId('menu-export-png').click()
@@ -410,5 +415,71 @@ test.describe('embed mode', () => {
     await page.goto('/?e2e&embed=0')
     await expect(page.getByTestId('topbar')).toBeVisible()
     await expect(page.getByTestId('embed-view')).toHaveCount(0)
+  })
+})
+
+/**
+ * The app was built for a desktop split and had no media queries at all: at 390px the code panel
+ * has a pixel width, so it took the whole window and the canvas was never on screen. These pin the
+ * behaviour that replaced it — the panes take turns, and nothing sticks out sideways.
+ */
+test.describe('narrow screens', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('opens on the canvas, not on the code panel hidden behind it', async ({ page }) => {
+    await page.goto(URL)
+    // The onboarding card lives over the canvas; if the panel covered it, a first visit would
+    // land in an empty editor with no way in.
+    await expect(page.getByTestId('empty-state')).toBeVisible()
+    await expect(page.getByTestId('right-pane')).toBeHidden()
+    await expect(page.getByTestId('right-rail')).toBeVisible()
+  })
+
+  test('the panes take turns and neither one squeezes the other', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node')).toHaveCount(4)
+
+    // Canvas first: it gets the whole width rather than what is left over.
+    const view = page.viewportSize()!
+    const canvas = (await page.getByTestId('canvas-pane').boundingBox())!
+    expect(Math.round(canvas.width)).toBe(view.width)
+
+    // Then the panel, which covers the canvas instead of sharing the row with it.
+    await page.getByTestId('btn-expand-right').click()
+    const pane = (await page.getByTestId('right-pane').boundingBox())!
+    expect(Math.round(pane.width)).toBe(view.width)
+    await expect(page.getByTestId('dbml-editor')).toBeVisible()
+
+    // And back.
+    await page.getByTestId('btn-collapse-right').click()
+    await expect(page.getByTestId('right-pane')).toBeHidden()
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+  })
+
+  test('nothing overflows the viewport sideways', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-ecommerce').click()
+    await expect(page.getByTestId('table-node')).toHaveCount(7)
+    const { scrollW, clientW } = await page.evaluate(() => ({
+      scrollW: document.documentElement.scrollWidth,
+      clientW: document.documentElement.clientWidth,
+    }))
+    expect(scrollW).toBe(clientW)
+  })
+
+  test('controls dropped from the bar are in the More menu instead, and only there', async ({ page }) => {
+    await page.goto(URL)
+    await expect(page.getByTestId('btn-export')).toBeHidden()
+    await expect(page.getByTestId('btn-theme')).toBeHidden()
+    // Share is the one action that keeps its place in the bar.
+    await expect(page.getByTestId('btn-share')).toBeVisible()
+
+    await openMoreMenu(page)
+    const menu = page.getByTestId('more-menu')
+    await expect(menu.getByText('DBML, SQL or models.py…')).toHaveCount(1)
+    await expect(menu.getByText(/Switch to (light|dark) mode/)).toHaveCount(1)
   })
 })

@@ -556,3 +556,33 @@ textarea.erd-input {
   white-space: nowrap;
   cursor: default;
 }
+
+/* ---- narrow screens ----------------------------------------------------------------
+ * The inspector is a right-hand column 22rem wide. On a phone that is the whole screen, so it
+ * becomes a sheet along the bottom edge instead: the table stays visible above it while its
+ * columns are being edited, which is the point of editing on the canvas at all.
+ * ------------------------------------------------------------------------------------ */
+
+@media (max-width: 640px) {
+  .erd-inspector {
+    top: auto;
+    left: var(--erd-space-4);
+    right: var(--erd-space-4);
+    bottom: var(--erd-space-4);
+    width: auto;
+    max-width: none;
+    max-height: 58%;
+    padding: var(--erd-space-4);
+  }
+  .erd-inspector--collapsed {
+    width: auto;
+    max-height: none;
+  }
+
+  /* The toolbar sat under the top bar with a 16px margin on each side; on a narrow canvas it
+     needs the margin back more than it needs the inset. */
+  .erd-toolbar.react-flow__panel { margin: var(--erd-space-4); }
+
+  /* Thumb-sized, like the header controls. */
+  .erd-tool { min-height: 32px; }
+}
