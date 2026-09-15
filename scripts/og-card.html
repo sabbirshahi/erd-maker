@@ -1,0 +1,141 @@
+<!doctype html>
+<!--
+  Source for public/og.png, the 1200x630 card chat apps show when a share link is pasted.
+  Regenerate with: node scripts/og-card.mjs
+
+  Colours are duplicated from src/tokens.css rather than imported: this file renders standalone in
+  a headless browser with no build step, and the output is a PNG, so nothing here reaches the app.
+  It lives outside src/ so the tokens test does not read it as a component taking colour by hand.
+  Keep it in step with the light theme if those tokens change.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #fafafa;
+        --surface: #ffffff;
+        --surface-2: #f4f4f5;
+        --text: #18181b;
+        --text-muted: #71717a;
+        --hairline: #e4e4e7;
+        --hairline-strong: #d4d4d8;
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+        --accent-text: #3730a3;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        width: 1200px; height: 630px; overflow: hidden;
+        display: grid; grid-template-columns: 1fr 470px; align-items: center; gap: 56px;
+        padding: 0 72px;
+        background: var(--bg); color: var(--text);
+        font-family: Inter, system-ui, sans-serif; font-weight: 400;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ---- left column ---- */
+      .brand { display: flex; align-items: center; gap: 13px; margin-bottom: 30px; }
+      .brand span { font-size: 27px; font-weight: 500; letter-spacing: -0.01em; }
+      h1 { font-size: 55px; line-height: 1.12; font-weight: 500; letter-spacing: -0.022em; }
+      h1 em { font-style: normal; color: var(--accent); }
+      p { margin-top: 20px; font-size: 21px; line-height: 1.5; color: var(--text-muted); max-width: 30ch; }
+      .chips { display: flex; gap: 8px; margin-top: 32px; }
+      .chip {
+        padding: 7px 14px; border-radius: 999px; font-size: 15px;
+        background: var(--surface); border: 1px solid var(--hairline); color: var(--text-muted);
+      }
+      .chip--on { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent-text); }
+
+      /* ---- right column: two table cards and the link between them ---- */
+      .stage { position: relative; height: 430px; }
+      .table {
+        position: absolute; width: 196px;
+        background: var(--surface); border: 1px solid var(--hairline-strong);
+        border-radius: 10px; overflow: hidden;
+      }
+      .table--a { top: 22px; left: 0; }
+      .table--b { bottom: 22px; right: 0; }
+      .thead {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 13px; border-bottom: 1px solid var(--hairline);
+        font-size: 15px; font-weight: 500;
+      }
+      .dot { width: 8px; height: 8px; border-radius: 999px; flex: none; }
+      .row {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 8px 13px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px;
+      }
+      .row + .row { border-top: 1px solid var(--hairline); }
+      .type { color: var(--text-muted); }
+      .badge {
+        padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: Inter, sans-serif;
+        background: var(--accent-soft); color: var(--accent-text);
+      }
+      .badge--fk { background: var(--surface-2); color: #52525b; }
+      svg.link { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="brand">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2.5" y="3" width="9" height="6.5" rx="1.25" />
+          <rect x="12.5" y="14.5" width="9" height="6.5" rx="1.25" />
+          <path d="M6.5 9.5v4.5a2.5 2.5 0 0 0 2.5 2.5h4" />
+        </svg>
+        <span>DBridge</span>
+      </div>
+      <h1>DBML, a diagram and <em>Django models</em>, always in sync.</h1>
+      <p>A database designer that runs entirely in your browser. No backend, no account.</p>
+      <div class="chips">
+        <div class="chip chip--on">DBML</div>
+        <div class="chip">Diagram</div>
+        <div class="chip">models.py</div>
+        <div class="chip">SQL</div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <svg class="link"><path id="edge" fill="none" stroke="#4f46e5" stroke-width="1.5" /><circle id="from" r="3.5" fill="#4f46e5" /><circle id="to" r="3.5" fill="#4f46e5" /></svg>
+
+      <div class="table table--a">
+        <div class="thead"><span class="dot" style="background:#4f46e5"></span>customers</div>
+        <div class="row" id="pk-row"><span>id</span><span><span class="type">bigint</span> <span class="badge">pk</span></span></div>
+        <div class="row"><span>email</span><span class="type">varchar</span></div>
+        <div class="row"><span>created_at</span><span class="type">timestamp</span></div>
+      </div>
+
+      <div class="table table--b">
+        <div class="thead"><span class="dot" style="background:#0d9488"></span>orders</div>
+        <div class="row"><span>id</span><span><span class="type">bigint</span> <span class="badge">pk</span></span></div>
+        <div class="row" id="fk-row"><span>customer_id</span><span><span class="badge badge--fk">fk</span></span></div>
+        <div class="row"><span>total</span><span class="type">numeric</span></div>
+      </div>
+    </div>
+    <script>
+      // The edge is drawn from the real row positions, the same way the canvas resolves a
+      // relationship to two column handles. Hand-written coordinates drifted whenever a row's
+      // padding or the card width changed, and the line stopped short of the second table.
+      const stage = document.querySelector('.stage').getBoundingClientRect()
+      const at = (sel, side) => {
+        const r = document.querySelector(sel).getBoundingClientRect()
+        return { x: (side === 'right' ? r.right : r.left) - stage.left, y: r.top + r.height / 2 - stage.top }
+      }
+      const a = at('#pk-row', 'right')
+      const b = at('#fk-row', 'left')
+      const mid = (a.x + b.x) / 2
+      const r = 12
+      const dir = Math.sign(b.y - a.y)
+      document.getElementById('edge').setAttribute('d',
+        `M ${a.x} ${a.y} H ${mid - r} Q ${mid} ${a.y} ${mid} ${a.y + r * dir} ` +
+        `V ${b.y - r * dir} Q ${mid} ${b.y} ${mid + r} ${b.y} H ${b.x}`)
+      for (const [id, p] of [['from', a], ['to', b]]) {
+        const c = document.getElementById(id)
+        c.setAttribute('cx', p.x); c.setAttribute('cy', p.y)
+      }
+    </script>
+  </body>
+</html>

@@ -14,16 +14,26 @@
     />
 
     <!-- Share links ('#d=...') are pasted into chat apps, so they need a card rather than a bare URL.
-         og:url and og:image are still to be filled in: the production domain is not chosen yet, and
-         a 1200x630 image has to live in public/ to keep a stable URL. -->
+         og:image must be absolute: the crawlers that read it do not resolve relative paths against
+         the share link. The card itself is generated from scripts/og-card.html. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="DBridge" />
+    <meta property="og:url" content="https://dbridge-app.vercel.app/" />
+    <meta property="og:image" content="https://dbridge-app.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Two linked table cards, customers and orders, beside the line: DBML, a diagram and Django models, always in sync."
+    />
     <meta property="og:title" content="DBridge — DBML, diagram and Django models in sync" />
     <meta
       property="og:description"
       content="Browser-only ERD editor. Write DBML, drag tables on a canvas, read the Django models.py — all three stay in sync. No backend, no account."
     />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://dbridge-app.vercel.app/og.png" />
+    <link rel="canonical" href="https://dbridge-app.vercel.app/" />
 
     <script>
       try {
