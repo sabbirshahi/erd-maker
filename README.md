@@ -103,4 +103,4 @@ push and pull request.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
