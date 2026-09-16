@@ -30,8 +30,10 @@
   box-shadow: 0 0 0 1px var(--erd-accent);
 }
 
-/* The card stays neutral; identity comes from the name and a small accent dot, so a wall of
-   tables reads as one surface instead of eight competing colour blocks. */
+/* An untinted card stays neutral; identity comes from the name and a small accent dot, so a wall
+   of plain tables reads as one surface instead of eight competing colour blocks. Give a table a
+   colour and the whole header takes it, which is what the field promises and what dbdiagram.io
+   does; see .erd-table__header--tinted below. */
 .erd-table__header {
   display: flex;
   align-items: center;
@@ -50,6 +52,26 @@
   height: var(--erd-dot-size);
   border-radius: var(--erd-radius-pill);
   background: var(--erd-c-slate);
+}
+
+/* A tinted header. The background and the ink are set inline, from the table's own hex and from
+   the ink that hex earns (src/canvas/contrast.ts) — nothing here assumes which one it got. The
+   rest of the header's text is muted against the card, which a tint would strand, so on a tint it
+   falls back to the header's own ink and leans on size and the mono face for hierarchy instead. */
+.erd-table__header--tinted {
+  /* The hairline under the header reads as a seam once the band is coloured; the row stays the
+     same height because only the colour goes. */
+  border-bottom-color: transparent;
+}
+.erd-table__header--tinted .erd-row__type {
+  color: inherit;
+}
+.erd-table__header--tinted .erd-table__placeholder,
+.erd-table__header--tinted svg {
+  opacity: 1;
+}
+.erd-table__placeholder {
+  opacity: 0.6;
 }
 .erd-table__rows {
   list-style: none;
@@ -520,6 +542,9 @@ textarea.erd-input {
   border-color: var(--erd-accent);
   box-shadow: 0 0 0 2px var(--erd-accent);
 }
+/* A tinted header sets its background inline and so keeps its colour here: overriding a table's
+   own colour to say "selected" would read as the colour having changed. The accent ring and the
+   check badge carry the selection on those tables, and both sit outside the header. */
 .erd-table--multi .erd-table__header {
   background: var(--erd-row-selected);
 }
