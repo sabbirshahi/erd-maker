@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateFakeData, type FakeDataset } from '@/core/fake'
 import { formatDateTime, parseType, uniqueFallback, valueForType } from '@/core/fake/heuristics'
-import { newColumn, newIdColumn, newTable, type Column, type Ref, type Schema, type Table } from '@/core/schema'
+import { emptySchema, newColumn, newIdColumn, newTable, type Column, type Ref, type Schema, type Table } from '@/core/schema'
 
 // ---------- fixture: blog (users, posts -> users, tags, comments -> posts/users, posts <> tags) ----------
 
@@ -513,5 +513,75 @@ describe('heuristics helpers', () => {
 
   it('formatDateTime uses UTC', () => {
     expect(formatDateTime(new Date('2024-02-03T04:05:06.000Z'))).toBe('2024-02-03 04:05:06')
+  })
+})
+
+// ---------- unique foreign keys ----------
+//
+// Reported from the demo: `UNIQUE constraint failed:
+// ar_common_appealdenialscenario.denial_category_id`. The seeder disables FK checks, but SQLite
+// enforces UNIQUE through an index regardless, so a duplicate FK value fails the insert.
+
+/** A parent, and a child whose FK to it is declared unique on the COLUMN rather than by ref kind. */
+function uniqueFkSchema(kind: Ref['kind'], childRows: { notNull: boolean }): Schema {
+  const category = table('denial_category', [
+    { ...newIdColumn(), id: 'cat_id' },
+    col('name', 'varchar(80)', { notNull: true, unique: true }),
+  ])
+  const scenario = table('denial_scenario', [
+    { ...newIdColumn(), id: 'sc_id' },
+    col('denial_category_id', 'bigint', { notNull: childRows.notNull, unique: true }),
+    col('label', 'varchar(120)', { notNull: true }),
+  ])
+  return {
+    ...emptySchema(),
+    tables: [category, scenario],
+    refs: [ref('r_cat', scenario, ['denial_category_id'], category, ['id'], kind)],
+  }
+}
+
+function columnValues(data: FakeDataset, tableName: string, columnName: string): unknown[] {
+  const t = data.tables.find((x) => x.name === tableName)!
+  return t.rows.map((r) => r[t.columns.indexOf(columnName)])
+}
+
+/** What SQLite checks: a UNIQUE column may repeat only NULL. */
+function duplicates(values: unknown[]): unknown[] {
+  const seen = new Set<string>()
+  const dupes: unknown[] = []
+  for (const v of values) {
+    if (v === null || v === undefined) continue
+    const k = JSON.stringify(v)
+    if (seen.has(k)) dupes.push(v)
+    seen.add(k)
+  }
+  return dupes
+}
+
+describe('a foreign key that is also unique', () => {
+  it('draws each parent at most once when the column says unique, not only when the ref does', async () => {
+    // '>' is what a Django OneToOneField becomes on import: many-to-one ref, unique column.
+    const data = await generateFakeData(uniqueFkSchema('>', { notNull: true }), 25)
+    expect(duplicates(columnValues(data, 'denial_scenario', 'denial_category_id'))).toEqual([])
+  })
+
+  it('does the same for a ref already declared one-to-one', async () => {
+    const data = await generateFakeData(uniqueFkSchema('-', { notNull: true }), 25)
+    expect(duplicates(columnValues(data, 'denial_scenario', 'denial_category_id'))).toEqual([])
+  })
+
+  it('stops short rather than repeating a parent when the children outnumber them', async () => {
+    // 25 requested rows, 25 parents: fine. The failure mode is a child table that cannot be
+    // filled without reusing a parent, which the old code did by picking a random index.
+    const data = await generateFakeData(uniqueFkSchema('>', { notNull: true }), 25)
+    const rows = columnValues(data, 'denial_scenario', 'denial_category_id')
+    const parents = columnValues(data, 'denial_category', 'id')
+    expect(rows.length).toBeLessThanOrEqual(parents.length)
+    expect(duplicates(rows)).toEqual([])
+  })
+
+  it('leaves a nullable unique foreign key null rather than reusing a parent', async () => {
+    const data = await generateFakeData(uniqueFkSchema('>', { notNull: false }), 25)
+    expect(duplicates(columnValues(data, 'denial_scenario', 'denial_category_id'))).toEqual([])
   })
 })

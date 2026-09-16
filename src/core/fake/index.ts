@@ -62,23 +62,61 @@ function enumValuesFor(schema: Schema, col: Column): string[] | undefined {
 }
 
 /** Which columns carry a FK, and where it points. */
+/**
+ * Is this column constrained to distinct values in its own right?
+ *
+ * `[unique]` on the column, or a unique index over it alone. A composite unique index does not
+ * count: it constrains the combination, and its columns may each repeat.
+ */
+function columnIsUnique(table: Table, col: Column): boolean {
+  if (col.unique) return true
+  return table.indexes.some((i) => (i.unique || i.pk) && i.columnIds.length === 1 && i.columnIds[0] === col.id)
+}
+
 function fkColumns(schema: Schema): Map<string, FkInfo> {
   const out = new Map<string, FkInfo>()
+  const tableById = new Map(schema.tables.map((t) => [t.id, t]))
   for (const ref of schema.refs) {
     if (ref.kind === '<>') continue
     const { fk, target } = fkSide(ref)
+    const fkTable = tableById.get(fk.tableId)
     fk.columnIds.forEach((colId, i) => {
       const targetColumnId = target.columnIds[i] ?? target.columnIds[0]
       if (!targetColumnId) return
+      // A ref of kind '-' is one-to-one, but so is a '>' whose column carries its own unique
+      // constraint — which is what a Django OneToOneField becomes on import. Reading only the ref
+      // kind let the generator hand the same parent to several children, and SQLite rejected the
+      // insert: UNIQUE is enforced by an index, so constraint_checks_disabled() does not cover it.
+      const col = fkTable?.columns.find((c) => c.id === colId)
       out.set(key(fk.tableId, colId), {
         ref,
         targetTableId: target.tableId,
         targetColumnId,
-        unique: ref.kind === '-',
+        unique: ref.kind === '-' || (fkTable !== undefined && col !== undefined && columnIsUnique(fkTable, col)),
       })
     })
   }
   return out
+}
+
+/**
+ * How many rows this table can actually hold.
+ *
+ * A row needs a parent of its own for every required single-use foreign key, so the table cannot
+ * be longer than its scarcest parent. Asking for more used to produce duplicates: the picker fell
+ * back to a random parent index once it ran out, which is precisely the value that fails.
+ * Self-references are exempt — those rows point at themselves, not at a parent table.
+ */
+function rowCapacity(table: Table, requested: number, fks: Map<string, FkInfo>, values: Map<string, unknown[]>): number {
+  let cap = requested
+  for (const col of table.columns) {
+    const fk = fks.get(key(table.id, col.id))
+    if (!fk || !fk.unique) continue
+    if (fk.targetTableId === table.id) continue
+    if (!col.notNull && !col.pk) continue
+    cap = Math.min(cap, (values.get(key(fk.targetTableId, fk.targetColumnId)) ?? []).length)
+  }
+  return Math.max(0, cap)
 }
 
 /**
@@ -120,7 +158,8 @@ export async function generateFakeData(
     const usedParents = new Map<string, Set<number>>()
 
     const rows: unknown[][] = []
-    for (let i = 0; i < n; i++) {
+    const capacity = rowCapacity(table, n, fks, values)
+    for (let i = 0; i < capacity; i++) {
       let row: unknown[] = []
       for (let attempt = 0; attempt <= UNIQUE_RETRIES; attempt++) {
         row = generateRow(table, i, attempt, {
@@ -215,7 +254,10 @@ function pickParent(fk: FkInfo, count: number, nullable: boolean, ctx: RowContex
     }
     const free: number[] = []
     for (let k = 0; k < count; k++) if (!used.has(k)) free.push(k)
-    if (free.length === 0) return nullable ? null : faker.number.int({ min: 0, max: count - 1 })
+    // Out of parents. Null is the only honest answer: a random index here is guaranteed to be one
+    // already taken, which is the duplicate the unique constraint rejects. rowCapacity() keeps a
+    // required column from reaching this point at all.
+    if (free.length === 0) return null
     const pick = faker.helpers.arrayElement(free)
     used.add(pick)
     return pick
