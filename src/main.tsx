@@ -7,7 +7,7 @@ import { initAnalytics } from '@/app/analytics'
 import { initTheme } from '@/app/theme'
 import { CrashScreen } from '@/app/CrashScreen'
 import { bootSession } from '@/app/session'
-import { restoreFromHash } from '@/app/share'
+import { restoreFromHash, restoreShortLink, shortLinkPending } from '@/app/share'
 
 initTheme()
 // No-op unless VITE_ANALYTICS_DOMAIN is set: no script tag, no request.
@@ -29,7 +29,9 @@ let bootError: Error | null = null
 try {
   // A share hash wins over the stored project, and is then adopted into it.
   const fromHash = restoreFromHash(useSchemaStore)
-  bootSession(fromHash)
+  // A /s/<id> link has to be fetched, so boot cannot have it yet — but it can tell one is coming
+  // from the URL, which is enough to adopt the arriving diagram instead of opening the last one.
+  bootSession(fromHash || shortLinkPending())
 } catch (err) {
   bootError = err instanceof Error ? err : new Error(String(err))
 }
@@ -47,3 +49,7 @@ createRoot(document.getElementById('root')!).render(
     <CrashScreen>{failure ? <Boom error={failure} /> : <App />}</CrashScreen>
   </StrictMode>,
 )
+
+// A no-op unless the URL is /s/<id>. Started after render so its toasts have somewhere to land,
+// and it reports its own failures rather than white-screening the app.
+void restoreShortLink(useSchemaStore)

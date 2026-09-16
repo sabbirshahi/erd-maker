@@ -25,7 +25,8 @@ export function EmptyState({
         </div>
         <h2 className="erd-empty__title">Design a database in your browser</h2>
         <p className="erd-muted mt-1 text-xs">
-          DBML, a live diagram and Django models — always in sync. Nothing leaves your browser.
+          DBML, a live diagram and Django models — always in sync. Your work stays in this browser;
+          sharing uploads a copy that is deleted after 7 days.
         </p>
         <div className="mt-5 grid gap-2">
           <Button variant="primary" data-testid="empty-examples" onClick={onExamples}>

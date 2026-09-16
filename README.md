@@ -22,8 +22,18 @@ diagram on your blog can never touch a reader's own saved diagrams.
 
 ## Privacy
 
-Your schema never leaves your browser. Diagrams are stored only in `localStorage`, and a share link
-carries the document inside the URL itself rather than uploading it anywhere.
+Your diagrams live in this browser. They are stored only in `localStorage`, and editing, autosave,
+import, export and the Django demo all run locally — none of them send a schema anywhere.
+
+**Sharing is the exception.** Pressing Share uploads the compressed diagram and gives you a short
+`/s/<id>` link. The stored copy is deleted automatically after 7 days, and until then anyone holding
+the link can read that diagram, so treat a share link as the secret it is. The app tells you this in
+the toast at the moment you share.
+
+Two things still never upload anything. Where no share storage is configured — local development,
+CI, or a self-hosted build without it — Share falls back to the original behaviour and puts the
+whole diagram inside a long `#d=…` link. And every `#d=…` link, including ones handed out before
+short links existed, is decoded entirely in your browser with no network request at all.
 
 The hosted build does count usage, and it is worth being precise about the difference: analytics
 record *that* an action happened, never *what* it acted on. It uses [Plausible](https://plausible.io),
@@ -87,8 +97,9 @@ overwritten.
 
 ## Deploy (Vercel)
 
-The site is static; `vercel.json` is already configured (framework Vite, `pnpm build`, output `dist`,
-SPA rewrite, immutable caching for `/assets`).
+The site is static apart from one function, `api/share.ts`, which backs short share links.
+`vercel.json` is already configured (framework Vite, `pnpm build`, output `dist`, SPA rewrite that
+excludes `/api`, immutable caching for `/assets`).
 
 1. Push the repository to GitHub.
 2. In Vercel: **Add New → Project**, import the repo (Hobby plan is fine).
@@ -97,6 +108,30 @@ SPA rewrite, immutable caching for `/assets`).
 4. Deploy. Every push to `main` redeploys; pull requests get preview URLs.
 
 Or from a terminal: `npx vercel` (first run links the project), then `npx vercel --prod`.
+
+### Share storage (optional)
+
+Short `/s/<id>` links need somewhere to put the diagram. Without it the app still works and still
+shares — `api/share.ts` answers `503`, and the client falls back to the original self-contained
+`#d=…` link, which is long but needs no server. That is also what happens in local development and
+in CI, so nothing below is required to run or test the project.
+
+To turn short links on:
+
+1. Vercel dashboard → your project → **Storage** → **Create** → a Redis store from the Marketplace
+   (Upstash's free tier is enough). Redis is what enforces the 7-day expiry, using a key TTL, so
+   there is no cleanup job to run.
+2. Connect it to the project and let Vercel inject the environment variables. The function accepts
+   either naming: `KV_REST_API_URL` + `KV_REST_API_TOKEN`, or `UPSTASH_REDIS_REST_URL` +
+   `UPSTASH_REDIS_REST_TOKEN`.
+3. Redeploy. Nothing else changes.
+
+Never commit those values — they are credentials, and this repository is public.
+
+What the endpoint enforces: payloads are capped at 128 KB, ids carry 128 bits of entropy so they
+cannot be guessed or walked, each address may create 20 links per 10 minutes, and no response or
+log ever contains a payload. The write endpoint is unauthenticated by design — the rate limit, not
+a key, is what keeps it from being used as free storage.
 
 CI (`.github/workflows/ci.yml`) runs typecheck, lint, unit tests, build and the Playwright suite on every
 push and pull request.
