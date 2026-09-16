@@ -16,6 +16,8 @@ import { CopyButton } from '@/app/CopyButton'
 import { Modal } from './Modal'
 import { track } from '@/app/analytics'
 import { Button } from '@/app/ui'
+import { exportFilename } from '@/app/filename'
+import { DEFAULT_PROJECT_NAME } from '@/app/projects'
 
 export type ExportFormat = 'dbml' | 'postgres' | 'mysql' | 'sqlite' | 'django' | 'json'
 
@@ -25,16 +27,35 @@ export interface ExportDialogProps {
   initialFormat?: ExportFormat
   /** Open with the export scoped to the canvas selection. */
   initialSelectionOnly?: boolean
+  /** The diagram's name: every file but models.py is named after it. */
+  diagramName?: string
 }
 
-export const EXPORT_FORMATS: Array<{ id: ExportFormat; label: string; file: string; mime: string }> = [
+export const EXPORT_FORMATS: Array<{
+  id: ExportFormat
+  label: string
+  /** The generic name: the extension every export takes, and the name an unnamed diagram keeps. */
+  file: string
+  mime: string
+  /** Not named after the diagram — the tool reading the file requires this exact name. */
+  fixedName?: true
+}> = [
   { id: 'dbml', label: 'DBML', file: 'schema.dbml', mime: 'text/plain' },
   { id: 'postgres', label: 'PostgreSQL', file: 'schema.postgres.sql', mime: 'application/sql' },
   { id: 'mysql', label: 'MySQL', file: 'schema.mysql.sql', mime: 'application/sql' },
   { id: 'sqlite', label: 'SQLite', file: 'schema.sqlite.sql', mime: 'application/sql' },
-  { id: 'django', label: 'Django models.py', file: 'models.py', mime: 'text/x-python' },
+  // Django loads models from a module called exactly this; `shop.py` cannot be dropped into an app.
+  { id: 'django', label: 'Django models.py', file: 'models.py', mime: 'text/x-python', fixedName: true },
   { id: 'json', label: 'JSON', file: 'schema.json', mime: 'application/json' },
 ]
+
+/** What the Download button will write: the diagram's name, or the format's own when it has one. */
+export function exportFileName(
+  format: (typeof EXPORT_FORMATS)[number],
+  diagramName: string,
+): string {
+  return format.fixedName ? format.file : exportFilename(diagramName, format.file)
+}
 
 /**
  * Produce the export text + diagnostics for a format. Never throws.
@@ -75,7 +96,7 @@ export function downloadText(fileName: string, text: string, mime = 'text/plain'
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSelectionOnly = false }: ExportDialogProps) {
+export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSelectionOnly = false, diagramName = DEFAULT_PROJECT_NAME }: ExportDialogProps) {
   const [format, setFormat] = useState<ExportFormat>(initialFormat)
   const fullSchema = useSchemaStore((s) => s.schema)
   const selectedIds = useCanvasUi((s) => s.multiSelect)
@@ -131,6 +152,7 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
   const { text, diagnostics } = rendered
 
   const meta = EXPORT_FORMATS.find((f) => f.id === format)!
+  const fileName = exportFileName(meta, diagramName)
   const extensions = useMemo(() => {
     if (format === 'dbml') return [dbml(() => schema)]
     if (format === 'django') return [python()]
@@ -156,7 +178,7 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">
         <div className="erd-muted flex flex-wrap items-center gap-3 text-xs">
-          <span data-testid="export-filename">{meta.file}</span>
+          <span className="truncate" data-testid="export-filename">{fileName}</span>
           {canScope && (
             <label className="flex items-center gap-1" data-testid="export-selection-only">
               <input className="erd-check" type="checkbox" checked={selectionOnly} onChange={(e) => setSelectionOnly(e.target.checked)} />
@@ -179,7 +201,7 @@ export function ExportDialog({ open, onClose, initialFormat = 'dbml', initialSel
             disabled={loading || text === ''}
             onClick={() => {
               track({ name: 'export', format })
-              downloadText(meta.file, text, meta.mime)
+              downloadText(fileName, text, meta.mime)
             }}
           >
             Download

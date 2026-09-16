@@ -205,7 +205,12 @@ test.describe('editors', () => {
     const exportDialog = page.getByTestId('export-dialog')
     await expect(exportDialog).toBeVisible()
     await page.getByTestId('export-tab-postgres').click()
-    await expect(page.getByTestId('export-filename')).toHaveText('schema.postgres.sql')
+    // Named after the diagram, which this one has not been renamed from.
+    await expect(page.getByTestId('export-filename')).toHaveText('Untitled diagram.postgres.sql')
+    await page.getByTestId('export-tab-django').click()
+    // Except this one: Django requires the module to be called models.py.
+    await expect(page.getByTestId('export-filename')).toHaveText('models.py')
+    await page.getByTestId('export-tab-postgres').click()
     const preview = page.getByTestId('export-preview')
     await expect(preview.locator('.cm-content')).toContainText('CREATE TABLE')
     // Read-only preview.

@@ -14,12 +14,14 @@
  * back-compatibility story and the offline fallback. `decodeShare` reads every format the app has
  * ever produced (see shareCodec.ts), and nothing in this file fetches anything to do it.
  *
- * On boot the hash wins over localStorage; after loading, it is removed so reloads use autosave.
- * A short link cannot be resolved synchronously, so main.tsx starts it after boot — see
- * shortLinkPending(), which answers from the URL alone.
+ * A document read from either shape becomes a NEW project (session.ts, adoptShare) and is opened:
+ * a link must never overwrite a diagram the recipient already has. Once read, the share is taken
+ * out of the address bar, so a reload reopens the adopted diagram rather than adopting it twice.
+ * A short link cannot be resolved synchronously, so main.tsx starts it after boot.
  */
 import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string'
 import type { useSchemaStore } from '@/store'
+import { adoptShare } from './session'
 import { packShare, unpackShare, type ShareDoc } from './shareCodec'
 import {
   SHARE_TTL_DAYS,
@@ -90,6 +92,10 @@ function clearShareUrl(): void {
  *
  * Synchronous, and deliberately so: main.tsx runs this before React mounts and branches on the
  * result. It makes no network call — an old `#d=…` link opens with the browser offline.
+ *
+ * The document is adopted as a new project rather than loaded over the open one, so a link costs
+ * the recipient nothing (see adoptShare). The hash is dropped as it is read, so a reload reopens
+ * the adopted diagram instead of adopting it a second time.
  */
 export function restoreFromHash(
   store: typeof useSchemaStore,
@@ -102,17 +108,18 @@ export function restoreFromHash(
     toast('Share link is invalid or corrupted', 'error')
     return false
   }
-  store.getState().load({ schema: doc.schema, layout: doc.layout })
+  adoptShare(doc, store)
   clearShareUrl()
   return true
 }
 
 /**
- * True when this page load is a `/s/<id>` link, answered from the URL alone.
+ * True when this page load is a `/s/<id>` link, answered from the URL alone and with no request.
  *
- * Boot needs this before the payload can possibly have arrived: it tells bootSession to treat the
- * load as a restore, so the incoming diagram is adopted into the active project the same way a
- * `#d=…` link is, instead of the tab opening the user's last diagram and then having it replaced.
+ * Boot cannot wait for the payload, so the tab opens its own diagram meanwhile and the arriving
+ * document is adopted as a new project on top of that (restoreShortLink). Nothing is written to
+ * the tab's own project in between, which is what makes a link that never arrives — expired,
+ * offline — cost the user nothing.
  */
 export function shortLinkPending(pathname: string = location.pathname): boolean {
   return shortIdFromPath(pathname) !== null
@@ -141,7 +148,7 @@ export async function restoreShortLink(
     toast('Share link is invalid or corrupted', 'error')
     return false
   }
-  store.getState().load({ schema: doc.schema, layout: doc.layout })
+  adoptShare(doc, store)
   clearShareUrl()
   return true
 }
@@ -152,9 +159,13 @@ export async function restoreShortLink(
  * The toast is not decoration here. Sharing is the only thing this app does that sends a diagram
  * off the machine, so it says which of the two happened at the moment it happens.
  */
-export async function shareCurrent(store: typeof useSchemaStore): Promise<ShareOutcome> {
+export async function shareCurrent(
+  store: typeof useSchemaStore,
+  /** The diagram's name, so it opens under that name rather than as an untitled one. */
+  name?: string,
+): Promise<ShareOutcome> {
   const s = store.getState()
-  const doc: ShareDoc = { schema: s.schema, layout: s.layout }
+  const doc: ShareDoc = { schema: s.schema, layout: s.layout, name }
   const payload = encodeShare(doc)
   track({ name: 'share-created', tables: s.schema.tables.length })
 

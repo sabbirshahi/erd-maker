@@ -235,11 +235,33 @@ export function migrateLegacyKeys(storage: Storage = localStorage): number {
 }
 
 /**
+ * Bring anything an older build left behind into the project index: keys under the `erd-maker:`
+ * prefix, and the pre-projects single document. Returns the project that document became, or null
+ * when there was nothing to adopt.
+ *
+ * A no-op once this browser has any project at all, so it can be called on every boot — including
+ * the boot that opens a share link, which must not leave a pre-projects diagram stranded outside
+ * the menu.
+ */
+export function adoptLegacyDocument(storage: Storage = localStorage): ProjectMeta | null {
+  migrateLegacyKeys(storage)
+  if (readIndex(storage).projects.length > 0) return null
+  const legacy = migrateDoc(read<unknown>(storage, DOC_KEY))
+  if (!legacy) return null
+  return createProject(
+    legacy.schema.tables.length > 0 ? 'My diagram' : DEFAULT_PROJECT_NAME,
+    { schema: legacy.schema, layout: legacy.layout, dbmlText: legacy.dbmlText },
+    storage,
+  )
+}
+
+/**
  * Ensure at least one project exists and one is active, adopting a pre-projects document if found.
  * Safe to call on every boot.
  */
 export function ensureProjects(storage: Storage = localStorage): ProjectMeta {
-  migrateLegacyKeys(storage)
+  const adopted = adoptLegacyDocument(storage)
+  if (adopted) return adopted
   const index = readIndex(storage)
   const current = index.projects.find((p) => p.id === index.activeId)
   if (current) return current
@@ -248,12 +270,10 @@ export function ensureProjects(storage: Storage = localStorage): ProjectMeta {
     writeIndex(index, storage)
     return index.projects[0]
   }
-  // First run: adopt the single-document format if the user has one.
-  const legacy = migrateDoc(read<unknown>(storage, DOC_KEY))
-  const meta = createProject(
-    legacy && legacy.schema.tables.length > 0 ? 'My diagram' : DEFAULT_PROJECT_NAME,
-    legacy ? { schema: legacy.schema, layout: legacy.layout, dbmlText: legacy.dbmlText } : null,
-    storage,
-  )
-  return meta
+  return createProject(DEFAULT_PROJECT_NAME, null, storage)
+}
+
+/** A diagram's name, defaulted for a project that has no index entry (embed, or a deleted one). */
+export function projectName(id: string, storage: Storage = localStorage): string {
+  return readIndex(storage).projects.find((p) => p.id === id)?.name ?? DEFAULT_PROJECT_NAME
 }

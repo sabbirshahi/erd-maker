@@ -11,6 +11,7 @@ import {
   setActiveProject,
   writeProject,
   migrateLegacyKeys,
+  projectName,
   DEFAULT_PROJECT_NAME,
 } from './projects'
 import { DOC_KEY, serializeDoc } from './persistence'
@@ -95,6 +96,14 @@ describe('projects', () => {
     storage.setItem('dbridge:projects:v1', '{ not json')
     expect(readIndex(storage).projects).toEqual([])
     expect(() => ensureProjects(storage)).not.toThrow()
+  })
+
+  it('reads a project’s name, defaulting one it has no entry for', () => {
+    const a = createProject('Shop', null, storage)
+    expect(projectName(a.id, storage)).toBe('Shop')
+    renameProject(a.id, 'Store', storage)
+    expect(projectName(a.id, storage)).toBe('Store')
+    expect(projectName('no-such-project', storage)).toBe(DEFAULT_PROJECT_NAME)
   })
 
   it('reports failure instead of throwing when storage rejects a write', () => {

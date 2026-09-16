@@ -69,6 +69,36 @@ test.describe('app shell', () => {
     await ctx.close()
   })
 
+  test('a share link arrives as a new diagram and leaves the open one alone', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-school').click()
+    await expect.poll(() => tableNames(page)).toContain('students')
+    await page.getByTestId('btn-share').click()
+    await expect(toastWith(page, 'Share link copied')).toBeVisible()
+    const link = await page.evaluate(() => navigator.clipboard.readText())
+
+    // The same browser profile then goes on to work on something else, and saves it.
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect.poll(() => tableNames(page)).toContain('posts')
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect(toastWith(page, 'Saved')).toBeVisible()
+
+    // Opening the link in that same profile must cost nothing that is already stored.
+    const other = await page.context().newPage()
+    await other.goto(link.replace(/^https?:\/\/[^/]+/, ''))
+    await expect.poll(() => tableNames(other)).toContain('students')
+    const stored = await other.evaluate(() =>
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith('dbridge:project:'))
+        .map((k) => (JSON.parse(localStorage.getItem(k)!).schema?.tables ?? []).map((t: { name: string }) => t.name)),
+    )
+    expect(stored.some((names: string[]) => names.includes('posts'))).toBe(true)
+    expect(stored.some((names: string[]) => names.includes('students'))).toBe(true)
+    await other.close()
+  })
+
   test('Problems panel shows a count badge and rows', async ({ page }) => {
     await page.goto(URL)
     // Use the 'sql' bucket: the editors/canvas own 'dbml' / 'django' / 'typemap' / 'canvas' and
@@ -136,7 +166,7 @@ test.describe('app shell', () => {
     const download = page.waitForEvent('download')
     await page.getByTestId('menu-export-png').click()
     const file = await download
-    expect(file.suggestedFilename()).toBe('erd.png')
+    expect(file.suggestedFilename()).toBe('Untitled diagram.png')
     const path = await file.path()
     const { readFileSync } = await import('node:fs')
     const bytes = readFileSync(path)
@@ -144,6 +174,27 @@ test.describe('app shell', () => {
     expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
     expect(bytes.length).toBeGreaterThan(5_000)
     await expect(toastWith(page, 'Exported PNG')).toBeVisible()
+  })
+
+  test('exports are named after the diagram, in the menu and in the file', async ({ page }) => {
+    await page.goto(URL)
+    await openExamples(page)
+    await page.getByTestId('example-blog').click()
+    await expect(page.getByTestId('table-node').first()).toBeVisible()
+
+    await page.getByTestId('btn-project').dblclick()
+    // A name with a path separator in it: what arrives must be one file, not a path.
+    await page.getByTestId('project-rename-input').fill('Blog / drafts')
+    await page.getByTestId('project-rename-input').press('Enter')
+    await expect(page.getByTestId('project-name')).toHaveText('Blog / drafts')
+
+    await page.getByTestId('btn-export').click()
+    // The menu names the file it is about to write, so the two cannot drift apart.
+    await expect(page.getByTestId('menu-export-json')).toHaveText('Download Blog drafts.json')
+    const download = page.waitForEvent('download')
+    await page.getByTestId('menu-export-json').click()
+    expect((await download).suggestedFilename()).toBe('Blog drafts.json')
+    await expect(toastWith(page, 'Downloaded Blog drafts.json')).toBeVisible()
   })
 
   test('Export menu offers PNG/JSON/DBML and undo reverts a load', async ({ page }) => {
@@ -291,7 +342,7 @@ test.describe('SVG export', () => {
     const download = page.waitForEvent('download')
     await page.getByTestId('menu-export-svg').click()
     const file = await download
-    expect(file.suggestedFilename()).toBe('erd.svg')
+    expect(file.suggestedFilename()).toBe('Untitled diagram.svg')
 
     const { readFileSync } = await import('node:fs')
     const svg = readFileSync(await file.path(), 'utf8')

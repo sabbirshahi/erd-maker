@@ -20,6 +20,10 @@
  *
  * The version is the first element of the payload, so an array is v2 and an object is v1; the
  * transport (lz-string, see share.ts) does not need to know which it carries.
+ *
+ * A v2 payload is read by POSITION, so a new field is only ever APPENDED — moving one would make
+ * every link already in the wild decode as something else. A reader that finds nothing at a
+ * position defaults it, which is what lets an older link open in a newer build.
  */
 import {
   newId,
@@ -40,6 +44,12 @@ import {
 export interface ShareDoc {
   schema: Schema
   layout: Layout
+  /**
+   * What the sender called the diagram. Optional on the wire in both formats: every link handed
+   * out before this existed carries no name, and those must keep opening. A document without one
+   * is named by the reader, not by the codec.
+   */
+  name?: string
 }
 
 /** Bump when the positional layout below changes shape, never when a field is appended. */
@@ -170,6 +180,7 @@ function packLayout(doc: ShareDoc): (number | null)[] {
  * document cannot be expressed positionally. Never throws.
  */
 export function packShare(doc: ShareDoc): unknown {
+  const name = doc.name?.trim() || undefined
   try {
     return trim([
       COMPACT_VERSION,
@@ -178,9 +189,13 @@ export function packShare(doc: ShareDoc): unknown {
       someList(packRefs(doc.schema)),
       someList(doc.schema.enums.map(packEnum)),
       someList(packLayout(doc)),
+      // Appended, so positions 0-5 read the same as they did before names existed.
+      some(name),
     ])
   } catch {
-    return { v: 1, schema: doc.schema, layout: doc.layout }
+    return name
+      ? { v: 1, schema: doc.schema, layout: doc.layout, name }
+      : { v: 1, schema: doc.schema, layout: doc.layout }
   }
 }
 
@@ -355,14 +370,21 @@ function unpackCompact(payload: Row): ShareDoc {
       .map(unpackEnum)
       .filter((e): e is Enum => e !== null),
   }
-  return { schema, layout: unpackLayout(payload[5], tables) }
+  const doc: ShareDoc = { schema, layout: unpackLayout(payload[5], tables) }
+  // Absent in every link made before names were carried, and in any link whose diagram was unnamed.
+  const name = str(payload[6])
+  if (name !== undefined) doc.name = name
+  return doc
 }
 
 /** The v1 shape, kept verbatim — these documents already carry ids, so they keep them. */
 function unpackPlain(payload: unknown): ShareDoc | null {
   const d = obj<Partial<ShareDoc>>(payload)
   if (!d?.schema || !Array.isArray(d.schema.tables)) return null
-  return { schema: d.schema, layout: d.layout ?? {} }
+  const doc: ShareDoc = { schema: d.schema, layout: d.layout ?? {} }
+  const name = str(d.name)
+  if (name !== undefined) doc.name = name
+  return doc
 }
 
 /** Read either wire format. Returns null for anything that is not a share payload. */

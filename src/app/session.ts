@@ -3,13 +3,30 @@
  * save controller that the top bar drives. One instance per page.
  */
 import { useSchemaStore } from '@/store'
+import type { Layout, Schema } from '@/core/schema'
 import { isEmbed } from './embed'
-import { ensureProjects, listProjects, readProject, writeProject } from './projects'
+import {
+  DEFAULT_PROJECT_NAME,
+  adoptLegacyDocument,
+  createProject,
+  ensureProjects,
+  listProjects,
+  readProject,
+} from './projects'
 import { createSaveController, type SaveController } from './saveController'
 
 export interface Session {
+  /** The project this tab is editing. Changes when a share link is adopted after boot. */
   activeId: string
   controller: SaveController
+}
+
+/** A diagram that arrived from outside this browser: the payload of a share link. */
+export interface IncomingDiagram {
+  schema: Schema
+  layout: Layout
+  /** What the sender called it. Old links carry no name; the default stands in for them. */
+  name?: string
 }
 
 /**
@@ -63,8 +80,67 @@ export function setTabProject(id: string): void {
 let session: Session | null = null
 
 /**
- * @param restored true when a share link already populated the store; the schema is then adopted
- *                 as the active project's content instead of being overwritten by it.
+ * Told when this tab changes project without the user asking — which is only ever a `/s/<id>`
+ * link, whose document arrives after the shell has already rendered the previous diagram.
+ */
+const activeListeners = new Set<(id: string) => void>()
+
+export function subscribeActiveProject(onChange: (id: string) => void): () => void {
+  activeListeners.add(onChange)
+  // Told the current answer as it subscribes: a link can land between a component rendering and
+  // its effect running, and a subscriber that only hears about later changes would miss that one.
+  if (session) onChange(session.activeId)
+  return () => void activeListeners.delete(onChange)
+}
+
+/**
+ * Adopt a diagram that arrived from outside this browser as a NEW project, and open it.
+ *
+ * Nothing already in the browser is written to. A share link is opened by someone who has their
+ * own diagrams here, and adopting into the active project destroyed whichever one that was — the
+ * same mistake restore was fixed for, and for the same reason (see backup.ts). The shared diagram
+ * is activated, because asking for the link is asking to see it.
+ *
+ * Returns null in embed mode, where there are no projects at all: the document is put in the
+ * store and nothing is written to the visitor's browser.
+ */
+export function adoptShare(doc: IncomingDiagram, store = useSchemaStore): Session | null {
+  const show = () => store.getState().load({ schema: doc.schema, layout: doc.layout })
+  if (isEmbed()) {
+    show()
+    return null
+  }
+
+  // Whatever an older build left behind becomes a project first, so the share does not end up the
+  // only diagram this browser can see.
+  adoptLegacyDocument()
+
+  const meta = createProject(doc.name ?? DEFAULT_PROJECT_NAME, {
+    schema: doc.schema,
+    layout: doc.layout,
+    dbmlText: null,
+  })
+  setTabProject(meta.id)
+  if (session) {
+    // Autosave is pointed at the new project BEFORE the store changes; the other order saves the
+    // arriving diagram over the one this tab had open, which is the whole bug.
+    session.controller.setProject(meta.id)
+    session.activeId = meta.id
+    for (const l of [...activeListeners]) l(meta.id)
+    show()
+    return session
+  }
+  // Before boot: the document goes in first, so the controller starts on a document that is
+  // already saved rather than announcing an unsaved change it would only write back unchanged.
+  show()
+  session = { activeId: meta.id, controller: createSaveController(store, meta.id) }
+  return session
+}
+
+/**
+ * @param restored true when a share link has already put a document in the store, so nothing
+ *                 stored may be loaded over it. A share link creates its own project — see
+ *                 adoptShare, which has already run by the time this is called with true.
  */
 export function bootSession(restored = false): Session {
   if (session) return session
@@ -84,17 +160,6 @@ export function bootSession(restored = false): Session {
   }
 
   const meta = ensureProjects()
-
-  if (restored) {
-    // A shared diagram was opened: keep it and save it into the active project.
-    writeProject(meta.id, { schema: store.schema, layout: store.layout, dbmlText: store.dbmlText })
-    setTabProject(meta.id)
-    session = {
-      activeId: meta.id,
-      controller: createSaveController(useSchemaStore, meta.id),
-    }
-    return session
-  }
 
   // A project URL wins: /?p=<id> opens that diagram directly, so it can be bookmarked and shared
   // with anyone using the same browser profile.

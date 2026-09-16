@@ -4,18 +4,20 @@
  */
 import { clsx } from 'clsx'
 import './shell.css'
-import { Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useSchemaStore, useAllDiagnostics, undo, redo, type TextView } from '@/store'
 import { isEmbed } from './embed'
 import { EmptyState } from './EmptyState'
 import { ExamplesGallery } from './ExamplesMenu'
 import { downloadText, exportCanvasPng, exportCanvasSvg } from './exportPng'
+import { exportFilename } from './filename'
+import { projectName, projectsRevision, subscribeProjects } from './projects'
 import { Canvas, DbmlEditor, DjangoEditor, DemoPanel, ImportDialog, ExportDialog, Placeholder } from './panes'
 import { ProjectMenu } from './ProjectMenu'
 import { backupFilename, buildBackup, restoreBackup, serializeBackup, BackupError } from './backup'
 import { CommandPalette } from './CommandPalette'
 import { ShortcutsDialog } from './ShortcutsDialog'
-import { getSession } from './session'
+import { getSession, subscribeActiveProject } from './session'
 import { startCrossTabSync } from './crossTab'
 import { ProblemsPanel, countBySeverity } from './ProblemsPanel'
 import { shareCurrent } from './share'
@@ -199,6 +201,19 @@ export function Shell() {
   const [activeId, setActiveId] = useState(session.activeId)
   const [theme, toggleTheme] = useTheme()
 
+  // A /s/<id> link resolves after this has rendered and adopts the diagram as a new project of its
+  // own, so the bar is told rather than left naming the diagram that was open before.
+  useEffect(() => subscribeActiveProject(setActiveId), [])
+
+  // Exports are named after the diagram, so the name has to be as live as the menu that renames
+  // it: the index is written from outside this component.
+  const revision = useSyncExternalStore(subscribeProjects, projectsRevision, projectsRevision)
+  const diagramName = useMemo(() => projectName(activeId), [activeId, revision])
+  const jsonFile = exportFilename(diagramName, 'erd.json')
+  const dbmlFile = exportFilename(diagramName, 'schema.dbml')
+  const pngFile = exportFilename(diagramName, 'erd.png')
+  const svgFile = exportFilename(diagramName, 'erd.svg')
+
   const diagnostics = useAllDiagnostics()
   const counts = countBySeverity(diagnostics)
   // Undo/redo live only in the header now, so they need the history depth the canvas toolbar used.
@@ -295,16 +310,16 @@ export function Shell() {
   const exportJson = () => {
     const s = useSchemaStore.getState()
     track({ name: 'export', format: 'json' })
-    downloadText(JSON.stringify({ v: 1, schema: s.schema, layout: s.layout }, null, 2), 'erd.json', 'application/json')
-    toast('Downloaded erd.json')
+    downloadText(JSON.stringify({ v: 1, schema: s.schema, layout: s.layout }, null, 2), jsonFile, 'application/json')
+    toast(`Downloaded ${jsonFile}`)
   }
   const exportDbmlFile = async () => {
     const s = useSchemaStore.getState()
     // Dynamic import keeps the (large) @dbml/core chunk out of the shell's boot path.
     const text = s.dbmlText ?? (await import('@/core/dbml')).generateDbml(s.schema)
     track({ name: 'export', format: 'dbml' })
-    downloadText(text, 'schema.dbml', 'text/plain')
-    toast('Downloaded schema.dbml')
+    downloadText(text, dbmlFile, 'text/plain')
+    toast(`Downloaded ${dbmlFile}`)
   }
   const fileInput = useRef<HTMLInputElement>(null)
   const importJson = async (file: File) => {
@@ -416,8 +431,8 @@ export function Shell() {
                 ? [
                     { id: 'more-export', label: <span className="erd-menu__section erd-menu__section--border">Export</span>, disabled: true, onSelect: () => {} },
                     { id: 'narrow-export-dialog', label: 'DBML, SQL or models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
-                    { id: 'narrow-export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng() } },
-                    { id: 'narrow-export-svg', label: 'Export SVG', onSelect: () => { track({ name: 'export', format: 'svg' }); void exportCanvasSvg() } },
+                    { id: 'narrow-export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng(pngFile) } },
+                    { id: 'narrow-export-svg', label: 'Export SVG', onSelect: () => { track({ name: 'export', format: 'svg' }); void exportCanvasSvg(svgFile) } },
                     { id: 'more-view', label: <span className="erd-menu__section erd-menu__section--border">View</span>, disabled: true, onSelect: () => {} },
                     { id: 'narrow-theme', label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', onSelect: toggleTheme },
                   ]
@@ -453,13 +468,14 @@ export function Shell() {
             )}
             items={[
               { id: 'export-dialog', label: 'DBML, SQL or models.py…', onSelect: () => { setExportSelectionOnly(false); setExportOpen(true) } },
-              { id: 'export-dbml', label: 'Download schema.dbml', onSelect: () => void exportDbmlFile() },
-              { id: 'export-json', label: 'Download erd.json', onSelect: exportJson },
-              { id: 'export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng() } },
-              { id: 'export-svg', label: 'Export SVG', onSelect: () => { track({ name: 'export', format: 'svg' }); void exportCanvasSvg() } },
+              // The labels spell out the file that arrives, so the two cannot drift apart.
+              { id: 'export-dbml', label: <span className="block max-w-64 truncate">Download {dbmlFile}</span>, onSelect: () => void exportDbmlFile() },
+              { id: 'export-json', label: <span className="block max-w-64 truncate">Download {jsonFile}</span>, onSelect: exportJson },
+              { id: 'export-png', label: 'Export PNG', onSelect: () => { track({ name: 'export', format: 'png' }); void exportCanvasPng(pngFile) } },
+              { id: 'export-svg', label: 'Export SVG', onSelect: () => { track({ name: 'export', format: 'svg' }); void exportCanvasSvg(svgFile) } },
             ]}
           />
-          <Button variant="primary" data-testid="btn-share" onClick={() => void shareCurrent(useSchemaStore)}>
+          <Button variant="primary" data-testid="btn-share" onClick={() => void shareCurrent(useSchemaStore, diagramName)}>
             Share
           </Button>
         </div>
@@ -632,7 +648,7 @@ export function Shell() {
         <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
       </Pane>
       <Pane name="Export dialog">
-        <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} initialSelectionOnly={exportSelectionOnly} />
+        <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} initialSelectionOnly={exportSelectionOnly} diagramName={diagramName} />
       </Pane>
     </div>
   )

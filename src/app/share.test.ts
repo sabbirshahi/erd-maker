@@ -167,6 +167,9 @@ const LEGACY_LINK =
 describe('share links', () => {
   beforeEach(() => {
     useSchemaStore.getState().reset()
+    // Reading a link adopts it as a project (session.ts), so each test starts on a clean browser.
+    localStorage.clear()
+    sessionStorage.clear()
     clearToasts()
     shown.length = 0
   })
@@ -233,6 +236,31 @@ describe('share links', () => {
     replace.mockRestore()
   })
 
+  it('carries the diagram name without moving anything a live link depends on', () => {
+    const doc = richDoc()
+    const unnamed = packShare(doc) as unknown[]
+    const named = packShare({ ...doc, name: 'Shop' }) as unknown[]
+    // v2 is read by position, so the name is appended: every earlier slot reads exactly as it did
+    // before names existed, which is what keeps links already in the wild decoding.
+    expect(named[0]).toBe(2)
+    expect(named.slice(0, 6)).toEqual(unnamed.slice(0, 6))
+    expect(named[6]).toBe('Shop')
+    expect(named).toHaveLength(unnamed.length + 1)
+
+    const back = decodeShare(encodeShare({ ...doc, name: 'Shop' }))!
+    expect(back.name).toBe('Shop')
+    // The document itself is untouched by having been named.
+    expect(normalize({ schema: back.schema, layout: back.layout })).toEqual(normalize(doc))
+  })
+
+  it('opens a link that carries no name, and invents none', () => {
+    // The frozen pre-compaction link below is the case that matters: v1, and named nothing.
+    expect(decodeShare(LEGACY_LINK)!.name).toBeUndefined()
+    expect(decodeShare(encodeShare(richDoc()))!.name).toBeUndefined()
+    // A blank name is the same as no name, rather than an empty string on the wire.
+    expect(packShare({ ...richDoc(), name: '   ' })).toEqual(packShare(richDoc()))
+  })
+
   it('falls back to the verbatim shape when a ref cannot be expressed positionally', () => {
     const doc = richDoc()
     doc.schema.refs[0].from.tableId = 'gone'
@@ -242,6 +270,11 @@ describe('share links', () => {
     // Still decodes, and the dangling ref is preserved rather than quietly dropped.
     const back = decodeShare(encodeShare(doc))!
     expect(back.schema.refs[0].from.tableId).toBe('gone')
+
+    // The name survives that fallback too, so the escape hatch loses nothing but the compaction.
+    const namedFallback = packShare({ ...doc, name: 'Shop' })
+    expect(namedFallback).toMatchObject({ v: 1, name: 'Shop' })
+    expect(decodeShare(encodeShare({ ...doc, name: 'Shop' }))!.name).toBe('Shop')
   })
 
   it('finds the payload in various hash shapes', () => {
@@ -318,6 +351,18 @@ describe('share links', () => {
       await shareCurrent(useSchemaStore)
       expect(shown[0].message).toContain('Share link copied')
     }
+  })
+
+  it('puts the diagram name in the link it copies', async () => {
+    Object.assign(navigator, { clipboard: { writeText: async () => {} } })
+    stubFetch(503, { error: 'storage-not-configured' })
+    useSchemaStore.getState().commit('import', schema())
+
+    const out = await shareCurrent(useSchemaStore, 'Shop')
+    expect(decodeShare(new URL(out.url).hash.slice(3))!.name).toBe('Shop')
+    // Sharing from an unnamed diagram is still a link, just an unnamed one.
+    const anon = await shareCurrent(useSchemaStore)
+    expect(decodeShare(new URL(anon.url).hash.slice(3))!.name).toBeUndefined()
   })
 
   it('says so when the diagram is too large to upload', async () => {

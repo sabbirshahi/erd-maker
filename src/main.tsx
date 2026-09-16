@@ -27,10 +27,11 @@ if (testable) {
  */
 let bootError: Error | null = null
 try {
-  // A share hash wins over the stored project, and is then adopted into it.
+  // A share hash wins over the stored project: it opens as a new diagram of its own, leaving
+  // everything already in this browser alone.
   const fromHash = restoreFromHash(useSchemaStore)
-  // A /s/<id> link has to be fetched, so boot cannot have it yet — but it can tell one is coming
-  // from the URL, which is enough to adopt the arriving diagram instead of opening the last one.
+  // A /s/<id> link has to be fetched, so boot cannot have it yet. It is adopted when it lands
+  // (below); until then the tab shows its own diagram, and an embedded page shows nothing.
   bootSession(fromHash || shortLinkPending())
 } catch (err) {
   bootError = err instanceof Error ? err : new Error(String(err))
