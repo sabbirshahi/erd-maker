@@ -96,6 +96,10 @@ export function ProjectMenu({ controller, activeId, onActiveChange }: ProjectMen
   // store on every change rather than captured once. Caching it meant a restored backup never
   // appeared until the page was reloaded.
   const revision = useSyncExternalStore(subscribeProjects, projectsRevision, projectsRevision)
+  // listProjects() reads localStorage, which oxlint cannot see, so it reports `revision` as an
+  // unnecessary dependency. It is the only thing making this re-read: drop it and a restored
+  // backup stops appearing until the page is reloaded, which is the bug this replaced.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const projects = useMemo(() => listProjects(), [revision])
   const [renaming, setRenaming] = useState(false)
   const renameInput = useRef<HTMLInputElement>(null)

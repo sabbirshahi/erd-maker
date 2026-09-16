@@ -421,7 +421,7 @@ function TableInspector({ table }: { table: Table }) {
   )
 }
 
-function RefInspector({ ref }: { ref: Ref }) {
+function RefInspector({ relation }: { relation: Ref }) {
   const update = useSchemaStore((s) => s.update)
   const select = useSchemaStore((s) => s.select)
   const tables = useSchemaStore((s) => s.schema.tables)
@@ -435,24 +435,24 @@ function RefInspector({ ref }: { ref: Ref }) {
   }
   const edit = (mutate: (r: Ref) => void) =>
     update('canvas', (d) => {
-      const r = d.refs.find((x) => x.id === ref.id)
+      const r = d.refs.find((x) => x.id === relation.id)
       if (r) mutate(r)
     })
   const editText = (mutate: (r: Ref) => void) =>
     sessionUpdate((d) => {
-      const r = d.refs.find((x) => x.id === ref.id)
+      const r = d.refs.find((x) => x.id === relation.id)
       if (r) mutate(r)
     })
 
   return (
     <div className="flex flex-col gap-3" data-testid="inspector-ref">
       <div className="text-xs">
-        <div className="font-mono" data-testid="inspector-ref-from">{label(ref.from)}</div>
-        <div className="erd-muted my-0.5 text-center">{refKindLabel(ref.kind)}</div>
-        <div className="font-mono" data-testid="inspector-ref-to">{label(ref.to)}</div>
+        <div className="font-mono" data-testid="inspector-ref-from">{label(relation.from)}</div>
+        <div className="erd-muted my-0.5 text-center">{refKindLabel(relation.kind)}</div>
+        <div className="font-mono" data-testid="inspector-ref-to">{label(relation.to)}</div>
       </div>
       <Field label="Kind">
-        <select className="erd-select" data-testid="inspector-ref-kind" value={ref.kind} onChange={(e) => edit((r) => (r.kind = e.target.value as RefKind))}>
+        <select className="erd-select" data-testid="inspector-ref-kind" value={relation.kind} onChange={(e) => edit((r) => (r.kind = e.target.value as RefKind))}>
           {REF_KINDS.map((k) => (
             <option key={k} value={k}>
               {refKindLabel(k)} — {refKindName(k)}
@@ -465,7 +465,7 @@ function RefInspector({ ref }: { ref: Ref }) {
           <select
             className="erd-select"
             data-testid="inspector-ref-on-delete"
-            value={ref.onDelete ?? ''}
+            value={relation.onDelete ?? ''}
             onChange={(e) => edit((r) => (e.target.value === '' ? delete r.onDelete : (r.onDelete = e.target.value as RefAction)))}
           >
             <option value="">default</option>
@@ -480,7 +480,7 @@ function RefInspector({ ref }: { ref: Ref }) {
           <select
             className="erd-select"
             data-testid="inspector-ref-on-update"
-            value={ref.onUpdate ?? ''}
+            value={relation.onUpdate ?? ''}
             onChange={(e) => edit((r) => (e.target.value === '' ? delete r.onUpdate : (r.onUpdate = e.target.value as RefAction)))}
           >
             <option value="">default</option>
@@ -496,7 +496,7 @@ function RefInspector({ ref }: { ref: Ref }) {
         <input
           className="erd-input"
           data-testid="inspector-ref-name"
-          value={ref.name ?? ''}
+          value={relation.name ?? ''}
           spellCheck={false}
           onChange={(e) => editText((r) => (e.target.value === '' ? delete r.name : (r.name = e.target.value)))}
           {...session}
@@ -508,7 +508,7 @@ function RefInspector({ ref }: { ref: Ref }) {
           className="erd-btn erd-btn--danger"
           data-testid="inspector-delete-ref"
           onClick={() => {
-            update('canvas', (d) => removeRef(d, ref.id))
+            update('canvas', (d) => removeRef(d, relation.id))
             select({})
             setPinned(null)
           }}
@@ -525,13 +525,13 @@ export function Inspector() {
   const tableId = useSchemaStore((s) => s.selection.tableId)
   const refId = useSchemaStore((s) => s.selection.refId)
   const table = useSchemaStore((s) => (tableId ? s.schema.tables.find((t) => t.id === tableId) : undefined))
-  const ref = useSchemaStore((s) => (refId ? s.schema.refs.find((r) => r.id === refId) : undefined))
+  const relation = useSchemaStore((s) => (refId ? s.schema.refs.find((r) => r.id === refId) : undefined))
   const select = useSchemaStore((s) => s.select)
   const open = useCanvasUi((s) => s.inspectorOpen)
   const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => () => endEditSession(), [])
-  if (!open || (!table && !ref)) return null
+  if (!open || (!table && !relation)) return null
 
   return (
     <aside
@@ -570,7 +570,7 @@ export function Inspector() {
           </button>
         </div>
       </div>
-      {!collapsed && (table ? <TableInspector table={table} /> : ref ? <RefInspector ref={ref} /> : null)}
+      {!collapsed && (table ? <TableInspector table={table} /> : relation ? <RefInspector relation={relation} /> : null)}
     </aside>
   )
 }

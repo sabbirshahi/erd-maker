@@ -208,6 +208,9 @@ export function Shell() {
   // Exports are named after the diagram, so the name has to be as live as the menu that renames
   // it: the index is written from outside this component.
   const revision = useSyncExternalStore(subscribeProjects, projectsRevision, projectsRevision)
+  // projectName() reads the index out of localStorage, which oxlint cannot see, so it reports
+  // `revision` as unnecessary. It is what makes a rename reach the export filenames at all.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const diagramName = useMemo(() => projectName(activeId), [activeId, revision])
   const jsonFile = exportFilename(diagramName, 'erd.json')
   const dbmlFile = exportFilename(diagramName, 'schema.dbml')
