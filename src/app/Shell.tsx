@@ -23,6 +23,7 @@ import { useTheme } from './theme'
 import { toast } from './toast'
 import { Button, ErrorBoundary, IconButton, Menu, Tabs } from './ui'
 import { NARROW, STACKED, useMediaQuery } from './useMediaQuery'
+import { MIN_CANVAS_WIDTH, clampPaneWidth, paneWidthCss, paneWidthFromPointer } from './paneSize'
 import { useStore } from 'zustand'
 import { track } from './analytics'
 
@@ -33,9 +34,24 @@ interface UiPrefs {
   rightWidth: number
   problemsOpen: boolean
   rightCollapsed: boolean
+  /**
+   * The panel is taking every pixel the canvas can spare. Held apart from `rightWidth` rather
+   * than written into it, so restoring comes back to the width the user dragged to instead of
+   * the default.
+   */
+  rightMaximized: boolean
+  /** Soft-wrap long lines in the code panes. Off by default: DBML should read as it was written. */
+  wrap: boolean
   tab: RightTab
 }
-const defaultPrefs: UiPrefs = { rightWidth: 460, problemsOpen: false, rightCollapsed: false, tab: 'dbml' }
+const defaultPrefs: UiPrefs = {
+  rightWidth: 460,
+  problemsOpen: false,
+  rightCollapsed: false,
+  rightMaximized: false,
+  wrap: false,
+  tab: 'dbml',
+}
 
 /**
  * Which pane a first visit opens on.
@@ -247,25 +263,31 @@ export function Shell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [session])
 
-  // Resizable split
+  // Resizable split. Dragging or nudging the divider always means "this width", so either one
+  // takes the panel out of its widened state rather than fighting it.
   const dragging = useRef(false)
+  const [resizing, setResizing] = useState(false)
   const onDividerDown = (e: React.PointerEvent) => {
     dragging.current = true
+    setResizing(true)
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
   }
   const onDividerMove = (e: React.PointerEvent) => {
     if (!dragging.current) return
-    const w = Math.min(Math.max(window.innerWidth - e.clientX, 280), window.innerWidth - 320)
-    patchPrefs({ rightWidth: w })
+    patchPrefs({ rightWidth: paneWidthFromPointer(e.clientX, window.innerWidth), rightMaximized: false })
   }
   const onDividerUp = () => {
     dragging.current = false
+    setResizing(false)
   }
   // A drag handle that only responds to a mouse is unusable without one.
   const onDividerKey = (e: React.KeyboardEvent) => {
     const step = e.shiftKey ? 64 : 16
-    if (e.key === 'ArrowLeft') patchPrefs({ rightWidth: Math.min(prefs.rightWidth + step, window.innerWidth - 320) })
-    else if (e.key === 'ArrowRight') patchPrefs({ rightWidth: Math.max(prefs.rightWidth - step, 280) })
+    const vw = window.innerWidth
+    // While widened the stored width is not what is on screen, so nudge from what is.
+    const from = prefs.rightMaximized ? clampPaneWidth(vw - MIN_CANVAS_WIDTH, vw) : prefs.rightWidth
+    if (e.key === 'ArrowLeft') patchPrefs({ rightWidth: clampPaneWidth(from + step, vw), rightMaximized: false })
+    else if (e.key === 'ArrowRight') patchPrefs({ rightWidth: clampPaneWidth(from - step, vw), rightMaximized: false })
     else return
     e.preventDefault()
   }
@@ -485,8 +507,11 @@ export function Shell() {
               role="separator"
               aria-orientation="vertical"
               aria-label="Resize code panel"
+              title="Drag to resize the code panel"
               tabIndex={0}
               className="erd-resize"
+              data-testid="resize-right"
+              data-dragging={resizing ? 'true' : undefined}
               onPointerDown={onDividerDown}
               onPointerMove={onDividerMove}
               onPointerUp={onDividerUp}
@@ -496,7 +521,7 @@ export function Shell() {
             <aside
               className="erd-rightpane"
               /* Not `width`: an inline width would outrank the narrow layout's rule. */
-              style={{ '--erd-pane-w': `${prefs.rightWidth}px` } as CSSProperties}
+              style={{ '--erd-pane-w': paneWidthCss(prefs.rightWidth, prefs.rightMaximized) } as CSSProperties}
               data-testid="right-pane"
             >
               <div className="erd-rightpane__head">
@@ -509,33 +534,75 @@ export function Shell() {
                     { id: 'demo', label: 'SQL' },
                   ]}
                 />
-                <button
-                  type="button"
-                  className="erd-collapse"
-                  data-testid="btn-collapse-right"
-                  aria-label="Hide code panel"
-                  title="Hide code panel"
-                  onClick={() => patchPrefs({ rightCollapsed: true })}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m10 6 6 6-6 6" /></svg>
-                </button>
+                {/* Three sizes of the same decision: how much room the code gets. Wrapping is the
+                    answer that costs no width at all, so it comes first. */}
+                <div className="erd-rightpane__tools">
+                  <button
+                    type="button"
+                    className="erd-collapse"
+                    data-testid="btn-wrap"
+                    aria-pressed={prefs.wrap}
+                    aria-label={prefs.wrap ? 'Stop wrapping long lines' : 'Wrap long lines'}
+                    title={prefs.wrap ? 'Stop wrapping long lines' : 'Wrap long lines'}
+                    onClick={() => patchPrefs({ wrap: !prefs.wrap })}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 6h16" />
+                      <path d="M4 12h13a3 3 0 0 1 0 6H8" />
+                      <path d="m11 15-3 3 3 3" />
+                    </svg>
+                  </button>
+                  {/* Below 860px the panel already covers the window, so widening it means nothing
+                      and the control would be one more thing in the way. */}
+                  {!stacked && (
+                    <button
+                      type="button"
+                      className="erd-collapse"
+                      data-testid="btn-maximize-right"
+                      aria-pressed={prefs.rightMaximized}
+                      aria-label={prefs.rightMaximized ? 'Restore the code panel width' : 'Widen the code panel'}
+                      title={prefs.rightMaximized ? 'Restore the code panel width' : 'Widen the code panel'}
+                      onClick={() => patchPrefs({ rightMaximized: !prefs.rightMaximized })}
+                    >
+                      {prefs.rightMaximized ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 5v14" /><path d="m5 7 5 5-5 5" /><path d="m11 7 5 5-5 5" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 5v14" /><path d="m16 7-5 5 5 5" /><path d="m10 7-5 5 5 5" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="erd-collapse"
+                    data-testid="btn-collapse-right"
+                    aria-label="Hide code panel"
+                    title="Hide code panel"
+                    onClick={() => patchPrefs({ rightCollapsed: true })}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m10 6 6 6-6 6" /></svg>
+                  </button>
+                </div>
               </div>
 
               <div className="min-h-0 flex-1">
                 <div className={clsx('h-full', prefs.tab !== 'dbml' && 'hidden')}>
                   <Pane name="DBML editor">
-                    <DbmlEditor />
+                    <DbmlEditor wrap={prefs.wrap} />
                   </Pane>
                 </div>
                 <div className={clsx('h-full', prefs.tab !== 'django' && 'hidden')}>
                   <Pane name="Django editor">
-                    <DjangoEditor />
+                    <DjangoEditor wrap={prefs.wrap} />
                   </Pane>
                 </div>
                 {prefs.tab === 'demo' && (
                   <div className="h-full">
                     <Pane name="Demo">
-                      <DemoPanel />
+                      <DemoPanel wrap={prefs.wrap} />
                     </Pane>
                   </div>
                 )}

@@ -226,29 +226,60 @@
 
 /* ---- panels ---- */
 .erd-app { display: flex; height: 100%; flex-direction: column; background: var(--erd-bg); color: var(--erd-text); }
+/* The panel's width is the one Shell.tsx puts on --erd-pane-w. Reading it here rather than as an
+   inline width is what lets the narrow layout below override it.
+   max-width is the same floor paneSize.ts clamps a drag to (MIN_CANVAS_WIDTH), enforced again in
+   CSS so a width stored on a wide monitor cannot push the canvas off a smaller one. */
 .erd-rightpane {
   display: flex;
+  width: var(--erd-pane-w, 460px);
+  max-width: calc(100% - 320px);
   min-height: 0;
+  flex: none;
   flex-direction: column;
   background: var(--erd-surface);
-  border-left: var(--erd-hairline-width) solid var(--erd-hairline);
 }
 .erd-rightpane__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--erd-space-3);
   padding-right: var(--erd-space-3);
   border-bottom: var(--erd-hairline-width) solid var(--erd-hairline);
 }
+.erd-rightpane__tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--erd-space-1);
+}
+
+/* The divider carries the line between the two panes — the panel has no left border of its own,
+   so there is one hairline here and not two.
+   It stays a hairline wide: a handle thick enough to grab would be a visible bar. The grab zone is
+   the pseudo-element, which spills over both neighbours and costs no layout width. */
 .erd-resize {
-  width: 5px;
+  position: relative;
+  /* Above the panel, which is painted later and would otherwise swallow the right half of the
+     grab zone. Under the narrow layout's panel (z-index 10), where the divider is gone anyway. */
+  z-index: 5;
+  width: var(--erd-hairline-width);
   flex: none;
   border: 0;
   padding: 0;
-  background: transparent;
+  background: var(--erd-hairline);
   cursor: col-resize;
+  touch-action: none;
+  transition: background var(--erd-transition);
 }
-.erd-resize:hover { background: var(--erd-accent); }
+.erd-resize::before {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
+.erd-resize:hover,
+.erd-resize:focus-visible,
+.erd-resize[data-dragging='true'] { background: var(--erd-accent); }
 
 .erd-collapse {
   display: inline-flex;
@@ -263,6 +294,8 @@
   cursor: pointer;
 }
 .erd-collapse:hover { background: var(--erd-surface-2); color: var(--erd-text); }
+/* Wrapping and widening are states, not actions: while one is on its control says so. */
+.erd-collapse[aria-pressed='true'] { background: var(--erd-surface-2); color: var(--erd-accent); }
 
 /* Collapsed right pane: a thin rail that can bring the panel back. */
 .erd-rail {
@@ -999,13 +1032,14 @@ textarea.erd-field { height: auto; padding: var(--erd-space-4); }
   .erd-main { position: relative; }
 
   /* Covers the canvas rather than sharing the row with it. `width` here beats the component's
-     --erd-pane-w because that is a custom property, not an inline width. */
+     --erd-pane-w because that is a custom property, not an inline width — and max-width goes with
+     it: "leave the canvas 320px" is meaningless once the panel is the whole window. */
   .erd-rightpane {
     position: absolute;
     inset: 0;
     z-index: 10;
     width: auto;
-    border-left: 0;
+    max-width: none;
   }
   /* A drag handle between two panes that are no longer side by side. */
   .erd-resize { display: none; }
@@ -1061,6 +1095,9 @@ textarea.erd-field { height: auto; padding: var(--erd-space-4); }
 
   /* Touch targets: a 26px control is comfortable with a mouse and not with a thumb. */
   .erd-iconbtn { min-width: 32px; min-height: 32px; }
+  .erd-collapse { width: 32px; height: 32px; }
+  /* Two 32px controls — widening is not offered here — plus the tab strip, in a 390px head. */
+  .erd-rightpane__head { padding-right: var(--erd-space-2); }
 
   /* Dialogs get the screen rather than a polite margin around it. */
   .erd-modal__scrim { padding: var(--erd-space-4); padding-top: var(--erd-space-6); }

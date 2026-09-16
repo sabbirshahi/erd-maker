@@ -33,6 +33,11 @@ export interface CodeMirrorEditorProps {
   onFocus?: () => void
   onBlur?: () => void
   readOnly?: boolean
+  /**
+   * Soft-wrap long lines instead of scrolling them sideways. Off by default: a line break the
+   * author did not write changes how the code reads, so it is asked for rather than assumed.
+   */
+  wrap?: boolean
   className?: string
   placeholder?: string
   /** Attribute for e2e selectors. */
@@ -191,6 +196,7 @@ export function CodeMirrorEditor({
   onFocus,
   onBlur,
   readOnly = false,
+  wrap = false,
   className,
   placeholder,
   testId,
@@ -199,6 +205,7 @@ export function CodeMirrorEditor({
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const readOnlyComp = useRef(new Compartment())
+  const wrapComp = useRef(new Compartment())
   const extComp = useRef(new Compartment())
   const onChangeRef = useRef(onChange)
   const onFocusRef = useRef(onFocus)
@@ -247,6 +254,7 @@ export function CodeMirrorEditor({
         keymap.of([indentWithTab]),
         baseTheme,
         readOnlyComp.current.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
+        wrapComp.current.of(wrap ? EditorView.lineWrapping : []),
         extComp.current.of(extensions ?? []),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -289,6 +297,12 @@ export function CodeMirrorEditor({
       effects: readOnlyComp.current.reconfigure([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
     })
   }, [readOnly])
+
+  useEffect(() => {
+    const view = viewRef.current
+    if (!view) return
+    view.dispatch({ effects: wrapComp.current.reconfigure(wrap ? EditorView.lineWrapping : []) })
+  }, [wrap])
 
   useEffect(() => {
     const view = viewRef.current

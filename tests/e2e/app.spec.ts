@@ -483,3 +483,65 @@ test.describe('narrow screens', () => {
     await expect(menu.getByText(/Switch to (light|dark) mode/)).toHaveCount(1)
   })
 })
+
+/**
+ * The divider shipped broken once. The width moved to a `--erd-pane-w` custom property so the
+ * narrow layout could override it, and no rule consumed the property — so dragging updated the
+ * preference while the panel stayed content-sized. Every check at the time measured a width and
+ * got a plausible number; none of them dragged. This one drags.
+ */
+test.describe('code panel width', () => {
+  const paneWidth = (page: Page) =>
+    page.evaluate(() => document.querySelector('[data-testid="right-pane"]')!.getBoundingClientRect().width)
+
+  /**
+   * The editor pane is lazy-loaded behind Suspense. Until it resolves the divider is laid out with
+   * zero height, so grabbing it at a guessed offset lands on the placeholder instead and the drag
+   * silently does nothing. Wait for the editor, then grab the divider at its own centre.
+   */
+  async function dragDivider(page: Page, dx: number) {
+    await expect(page.getByTestId('dbml-editor')).toBeVisible()
+    const d = (await page.getByRole('separator', { name: 'Resize code panel' }).boundingBox())!
+    expect(d.height).toBeGreaterThan(0)
+    const cx = d.x + d.width / 2
+    const cy = d.y + d.height / 2
+    await page.mouse.move(cx, cy)
+    await page.mouse.down()
+    await page.mouse.move(cx + dx, cy, { steps: 10 })
+    await page.mouse.up()
+  }
+
+  test('dragging the divider changes the rendered width, not just the preference', async ({ page }) => {
+    await page.goto(URL)
+    const before = await paneWidth(page)
+    await dragDivider(page, -200)
+    // The assertion that matters: what the user sees moved, not what localStorage says.
+    await expect.poll(() => paneWidth(page)).toBeGreaterThan(before + 150)
+  })
+
+  test('the width survives a reload', async ({ page }) => {
+    await page.goto(URL)
+    const before = await paneWidth(page)
+    await dragDivider(page, -160)
+    await expect.poll(() => paneWidth(page)).toBeGreaterThan(before + 120)
+    const widened = await paneWidth(page)
+
+    await page.reload()
+    await expect(page.getByTestId('dbml-editor')).toBeVisible()
+    await expect.poll(() => paneWidth(page)).toBeCloseTo(widened, 0)
+  })
+
+  test('maximise fills the window and restore returns to the dragged width', async ({ page }) => {
+    await page.goto(URL)
+    await dragDivider(page, -120)
+    const dragged = await paneWidth(page)
+
+    const widen = page.getByRole('button', { name: 'Widen the code panel' })
+    await widen.click()
+    await expect.poll(() => paneWidth(page)).toBeGreaterThan(dragged + 100)
+
+    // Restoring must come back to the width the user chose, not the 460px default.
+    await page.getByRole('button', { name: 'Restore the code panel width' }).click()
+    await expect.poll(() => paneWidth(page)).toBeCloseTo(dragged, 0)
+  })
+})

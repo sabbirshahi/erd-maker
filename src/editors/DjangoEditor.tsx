@@ -15,9 +15,11 @@ import { Button } from '@/app/ui'
 
 export interface DjangoEditorProps {
   className?: string
+  /** Soft-wrap long lines rather than scrolling them sideways. */
+  wrap?: boolean
 }
 
-export function DjangoEditor({ className }: DjangoEditorProps) {
+export function DjangoEditor({ className, wrap }: DjangoEditorProps) {
   const handle = useRef<CodeMirrorEditorHandle>(null)
   const [readOnly, setReadOnly] = useState(false)
   const initStarted = useRef(false)
@@ -101,6 +103,7 @@ export function DjangoEditor({ className }: DjangoEditorProps) {
           extensions={extensions}
           diagnostics={sync.diagnostics}
           readOnly={readOnly}
+          wrap={wrap}
         />
       </div>
     </div>

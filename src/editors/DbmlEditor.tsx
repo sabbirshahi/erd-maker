@@ -13,9 +13,11 @@ import { useGotoLine } from './goto'
 
 export interface DbmlEditorProps {
   className?: string
+  /** Soft-wrap long lines rather than scrolling them sideways. */
+  wrap?: boolean
 }
 
-export function DbmlEditor({ className }: DbmlEditorProps) {
+export function DbmlEditor({ className, wrap }: DbmlEditorProps) {
   const handle = useRef<CodeMirrorEditorHandle>(null)
   const sync = useTextSync({
     view: 'dbml',
@@ -52,6 +54,7 @@ export function DbmlEditor({ className }: DbmlEditorProps) {
           onBlur={() => void sync.onBlur()}
           extensions={extensions}
           diagnostics={sync.diagnostics}
+          wrap={wrap}
         />
       </div>
     </div>

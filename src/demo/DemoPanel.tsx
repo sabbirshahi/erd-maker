@@ -29,6 +29,8 @@ import { track } from '@/app/analytics'
 
 export interface DemoPanelProps {
   className?: string
+  /** Soft-wrap long lines rather than scrolling them sideways. */
+  wrap?: boolean
   /** Injectable for tests. */
   client?: DemoClient
 }
@@ -52,7 +54,7 @@ function formatCell(v: unknown): string {
   return String(v)
 }
 
-export function DemoPanel({ className, client: injected }: DemoPanelProps) {
+export function DemoPanel({ className, wrap, client: injected }: DemoPanelProps) {
   const client = useMemo(() => injected ?? getDemoClient(), [injected])
   const schema = useSchemaStore((s) => s.schema)
   const version = useSchemaStore((s) => s.version)
@@ -415,6 +417,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
             extensions={sqlExtensions}
             testId="demo-editor-sql"
             placeholder="SELECT …"
+            wrap={wrap}
           />
         </div>
         <div className={clsx('h-full', tab !== 'orm' && 'hidden')}>
@@ -424,6 +427,7 @@ export function DemoPanel({ className, client: injected }: DemoPanelProps) {
             extensions={ormExtensions}
             testId="demo-editor-orm"
             placeholder="Model.objects.all()"
+            wrap={wrap}
           />
         </div>
       </div>
