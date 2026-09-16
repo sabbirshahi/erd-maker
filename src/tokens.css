@@ -54,14 +54,6 @@
   --erd-c-violet: #a855f7;
   --erd-c-slate: #64748b;
 
-  /* ---- ink on a table's header tint ----
-     A table's colour is a literal hex held in the document, so it does not follow the theme and
-     neither can the text on it: the ink is picked from the tint's own luminance at render time
-     (src/canvas/contrast.ts). Pure white and pure black are the only pair that clears 4.5:1
-     against every possible hex, which is why these two are absolute and not redefined in dark. */
-  --erd-tint-ink-light: #ffffff;
-  --erd-tint-ink-dark: #000000;
-
   /* ---- canvas ---- */
   --erd-node-bg: var(--erd-surface);
   --erd-node-border: var(--erd-hairline-strong);

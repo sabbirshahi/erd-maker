@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { contrastRatio, inkContrast, inkFor, parseHexColor, relativeLuminance, type Ink } from './contrast'
+import { HEADER_TINT_PERCENT, contrastBetween, contrastRatio, mixOklab, parseHexColor, relativeLuminance } from './contrast'
 import { TABLE_COLORS } from './palette'
 
 /**
  * The header tint is the only colour in the app that is not chosen by a designer: it comes from the
  * document, the user can type any hex into the Inspector's colour input, and the same value has to
- * work in both themes. These tests hold the line that the header text always clears WCAG AA.
+ * work in both themes. These tests hold the line that the header text always clears WCAG AA against
+ * the wash that hex produces — using the exact color-mix TableNode.tsx renders, not a stand-in.
  */
+
+/** Mirrors tokens.css: the two themes' surface and ordinary text, which is what a tinted header
+ *  actually mixes and sits its text on (see TableNode.tsx and canvas.css's `--tinted` rules). */
+const THEMES = [
+  { name: 'light', surface: '#ffffff', text: '#18181b' },
+  { name: 'dark', surface: '#18181b', text: '#fafafa' },
+] as const
 
 /** The dark-theme twins of the palette, which a user in dark mode can pick with the colour input. */
 const DARK_TWINS = ['#818cf8', '#2dd4bf', '#34d399', '#fbbf24', '#c084fc', '#94a3b8']
@@ -66,63 +74,79 @@ describe('contrastRatio', () => {
   })
 })
 
-describe('inkFor', () => {
-  it('puts dark ink on white and light ink on black', () => {
-    expect(inkFor('#ffffff')).toBe('dark')
-    expect(inkFor('#000000')).toBe('light')
+describe('mixOklab', () => {
+  it('returns the base colour untouched at 0%', () => {
+    expect(mixOklab('#6366f1', '#ffffff', 0)).toBe('#ffffff')
   })
 
-  it('flips somewhere in the mid greys', () => {
-    expect(inkFor('#999999')).toBe('dark')
-    expect(inkFor('#555555')).toBe('light')
+  it('returns the tint untouched at 100%', () => {
+    expect(mixOklab('#6366f1', '#ffffff', 100)).toBe('#6366f1')
   })
 
-  it('returns null for a value it cannot measure, so the caller can skip the tint', () => {
-    expect(inkFor('cornflowerblue')).toBeNull()
-    expect(inkFor('#6366f1aa')).toBeNull()
+  it('falls back to the base colour for an unmeasurable tint', () => {
+    expect(mixOklab('cornflowerblue', '#ffffff', 16)).toBe('#ffffff')
   })
 
-  it('clears AA for every palette colour', () => {
-    for (const c of TABLE_COLORS) {
-      const ink = inkFor(c.hex) as Ink
-      expect(ink, c.label).not.toBeNull()
-      expect(inkContrast(c.hex, ink), `${c.label} ${c.hex}`).toBeGreaterThanOrEqual(AA)
-    }
+  it('moves a light surface only a little at header strength', () => {
+    // A sixteen-percent wash should read as "barely tinted", not "recoloured".
+    const mixed = mixOklab('#000000', '#ffffff', HEADER_TINT_PERCENT)
+    const rgb = parseHexColor(mixed)!
+    expect(relativeLuminance(rgb)).toBeGreaterThan(0.55)
   })
+})
 
-  it('clears AA for the dark-theme twins of the palette', () => {
-    for (const hex of DARK_TWINS) {
-      expect(inkContrast(hex, inkFor(hex) as Ink), hex).toBeGreaterThanOrEqual(AA)
-    }
-  })
-
-  it('clears AA across the whole grey ramp, including the crossover', () => {
-    for (let v = 0; v <= 255; v++) {
-      const hex = `#${v.toString(16).padStart(2, '0').repeat(3)}`
-      expect(inkContrast(hex, inkFor(hex) as Ink), hex).toBeGreaterThanOrEqual(AA)
-    }
-  })
-
-  it('clears AA for any hex the colour input can produce', () => {
-    // A 16-step sweep of the whole cube: 4096 tints, the worst of which must still reach 4.5:1.
-    let worst = { hex: '', ratio: Infinity }
-    for (let r = 0; r < 256; r += 17) {
-      for (let g = 0; g < 256; g += 17) {
-        for (let b = 0; b < 256; b += 17) {
-          const hex = `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`
-          const ratio = inkContrast(hex, inkFor(hex) as Ink)
-          if (ratio < worst.ratio) worst = { hex, ratio }
-        }
+describe('header tint contrast', () => {
+  it('clears AA for every palette colour, in both themes', () => {
+    for (const theme of THEMES) {
+      for (const c of TABLE_COLORS) {
+        const bg = mixOklab(c.hex, theme.surface, HEADER_TINT_PERCENT)
+        expect(contrastBetween(bg, theme.text), `${theme.name} ${c.label} ${c.hex}`).toBeGreaterThanOrEqual(AA)
       }
     }
-    expect(worst.ratio, worst.hex).toBeGreaterThanOrEqual(AA)
   })
 
-  it('picks the better of the two inks, never merely an adequate one', () => {
-    for (const c of [...TABLE_COLORS.map((t) => t.hex), ...DARK_TWINS, '#ffffff', '#000000', '#808080']) {
-      const chosen = inkFor(c) as Ink
-      const other: Ink = chosen === 'light' ? 'dark' : 'light'
-      expect(inkContrast(c, chosen), c).toBeGreaterThanOrEqual(inkContrast(c, other))
+  it('clears AA for the dark-theme twins of the palette, in dark mode', () => {
+    const dark = THEMES[1]
+    for (const hex of DARK_TWINS) {
+      const bg = mixOklab(hex, dark.surface, HEADER_TINT_PERCENT)
+      expect(contrastBetween(bg, dark.text), hex).toBeGreaterThanOrEqual(AA)
+    }
+  })
+
+  it('clears AA for pure white, pure black and a saturated mid-tone, in both themes', () => {
+    for (const theme of THEMES) {
+      for (const hex of ['#ffffff', '#000000', '#06b6d4']) {
+        const bg = mixOklab(hex, theme.surface, HEADER_TINT_PERCENT)
+        expect(contrastBetween(bg, theme.text), `${theme.name} ${hex}`).toBeGreaterThanOrEqual(AA)
+      }
+    }
+  })
+
+  it('clears AA across the whole grey ramp, in both themes', () => {
+    for (const theme of THEMES) {
+      for (let v = 0; v <= 255; v++) {
+        const hex = `#${v.toString(16).padStart(2, '0').repeat(3)}`
+        const bg = mixOklab(hex, theme.surface, HEADER_TINT_PERCENT)
+        expect(contrastBetween(bg, theme.text), `${theme.name} ${hex}`).toBeGreaterThanOrEqual(AA)
+      }
+    }
+  })
+
+  it('clears AA for any hex the colour input can produce, in both themes', () => {
+    // A 16-step sweep of the whole cube: 4096 tints, the worst of which must still reach 4.5:1.
+    for (const theme of THEMES) {
+      let worst = { hex: '', ratio: Infinity }
+      for (let r = 0; r < 256; r += 17) {
+        for (let g = 0; g < 256; g += 17) {
+          for (let b = 0; b < 256; b += 17) {
+            const hex = `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`
+            const bg = mixOklab(hex, theme.surface, HEADER_TINT_PERCENT)
+            const ratio = contrastBetween(bg, theme.text)
+            if (ratio < worst.ratio) worst = { hex, ratio }
+          }
+        }
+      }
+      expect(worst.ratio, `${theme.name} ${worst.hex}`).toBeGreaterThanOrEqual(AA)
     }
   })
 })

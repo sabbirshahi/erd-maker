@@ -32,8 +32,8 @@
 
 /* An untinted card stays neutral; identity comes from the name and a small accent dot, so a wall
    of plain tables reads as one surface instead of eight competing colour blocks. Give a table a
-   colour and the whole header takes it, which is what the field promises and what dbdiagram.io
-   does; see .erd-table__header--tinted below. */
+   colour and the header takes a thin wash of it instead of the dot; see .erd-table__header--tinted
+   below for why the wash, not the hex itself, is what gets painted. */
 .erd-table__header {
   display: flex;
   align-items: center;
@@ -54,10 +54,13 @@
   background: var(--erd-c-slate);
 }
 
-/* A tinted header. The background and the ink are set inline, from the table's own hex and from
-   the ink that hex earns (src/canvas/contrast.ts) — nothing here assumes which one it got. The
-   rest of the header's text is muted against the card, which a tint would strand, so on a tint it
-   falls back to the header's own ink and leans on size and the mono face for hierarchy instead. */
+/* A tinted header. The background is set inline in TableNode.tsx as a color-mix of the table's own
+   hex over the app's surface (src/canvas/contrast.ts has the percentage and the maths that prove
+   it holds contrast) — nothing here assumes what that hex was. The wash stays close to the surface
+   on purpose, so the header's ordinary text colour reads fine on it without being recomputed per
+   table; what does change is the muted secondary text, which loses its own colour on a tint and
+   inherits the header's instead, since "muted" was tuned against a plain surface and isn't
+   guaranteed to hold at every possible wash. */
 .erd-table__header--tinted {
   /* The hairline under the header reads as a seam once the band is coloured; the row stays the
      same height because only the colour goes. */
